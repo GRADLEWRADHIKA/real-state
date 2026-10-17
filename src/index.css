@@ -1,0 +1,100 @@
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/fraunces';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+
+  /* Starwiz green */
+  --color-brand-50: #f0f7f3;
+  --color-brand-100: #dcede3;
+  --color-brand-200: #b9dbc8;
+  --color-brand-300: #8cc2a5;
+  --color-brand-400: #5aa27d;
+  --color-brand-500: #36855f;
+  --color-brand-600: #236b4a;
+  --color-brand-700: #185a3d;
+  --color-brand-800: #0f5132;
+  --color-brand-900: #0b3d2a;
+  --color-brand-950: #062419;
+
+  /* Starwiz gold: accents only */
+  --color-gold-50: #fbf7ea;
+  --color-gold-100: #f5ecc9;
+  --color-gold-200: #ecd98f;
+  --color-gold-300: #e0c254;
+  --color-gold-400: #d4ab2a;
+  --color-gold-500: #c59d09;
+  --color-gold-600: #a07e06;
+
+  --color-canvas: #f6f5f1;
+  --color-ink: #1c1b18;
+
+  --shadow-card: 0 1px 2px rgb(28 27 24 / 0.04), 0 1px 1px rgb(28 27 24 / 0.03);
+  --shadow-pop: 0 -8px 32px -8px rgb(28 27 24 / 0.22);
+
+  --animate-sheet: sheet-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade: fade-in 0.18s ease-out;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes sheet-in {
+    from { transform: translateY(24px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes shimmer {
+    from { background-position: -400px 0; }
+    to { background-position: 400px 0; }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-stone-200/80 bg-white shadow-card;
+  }
+  .label-xs {
+    @apply text-[11px] font-semibold tracking-[0.06em] text-stone-500 uppercase;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .skeleton {
+    @apply rounded-md bg-stone-200/70;
+    background-image: linear-gradient(90deg, transparent 0, rgb(255 255 255 / 0.55) 50%, transparent 100%);
+    background-size: 400px 100%;
+    background-repeat: no-repeat;
+    animation: var(--animate-shimmer);
+  }
+  .field {
+    @apply block w-full rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-[15px] text-ink placeholder:text-stone-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 focus:outline-none disabled:bg-stone-100;
+  }
+}
+
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}

@@ -33,6 +33,7 @@
     "@capacitor/status-bar": "8.0.4",
     "@capgo/capacitor-native-biometric": "8.7.0",
     "@estateflow/shared": "file:./shared",
+    "@estateflow/site": "file:./site",
     "@fontsource-variable/fraunces": "5.3.0",
     "@fontsource-variable/manrope": "5.3.0",
     "@tanstack/query-async-storage-persister": "5.104.3",
@@ -53,7 +54,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "tailwindcss": "4.3.3",
-    "typescript": "7.0.2",
+    "typescript": "^5.9.3",
     "vite": "8.3.2",
     "vitest": "5.0.5"
   },

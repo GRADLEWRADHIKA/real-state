@@ -1,0 +1,76 @@
+/*
+ * Public website styles. Import after Tailwind in the host's CSS:  @import '@estateflow/site/site.css';
+ * The host supplies the fonts, ink colour and base styles; this adds the website palette and its
+ * component classes (all prefixed so they cannot collide with the CRM's own).
+ */
+@source './';
+
+@theme {
+  --color-forest: #062419;
+  --color-forest-2: #0e3a2a;
+  --color-forest-3: #1f5a43;
+  --color-brass: #b08d57;
+  --color-brass-light: #d9bb84;
+  --color-stone: #d8c9ae;
+  --color-paper: #f6f1e7;
+  --color-muted: #5f6a63;
+}
+
+.site-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 76rem;
+  padding-inline: 1.25rem;
+}
+@media (min-width: 768px) {
+  .site-container {
+    padding-inline: 2rem;
+  }
+}
+.site-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-brass);
+}
+.site-field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #d9d2c4;
+  background: #fff;
+  padding: 0.7rem 0.9rem;
+  font-size: 15px;
+}
+.site-field:focus {
+  outline: 2px solid var(--color-brass);
+  border-color: transparent;
+}
+.site-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.75rem 1.4rem;
+  font-weight: 700;
+  font-size: 15px;
+  transition: background 0.15s, color 0.15s;
+}
+.site-btn-primary {
+  background: var(--color-forest);
+  color: #fff;
+}
+.site-btn-primary:hover {
+  background: var(--color-forest-3);
+}
+.site-btn-brass {
+  background: var(--color-brass);
+  color: var(--color-forest);
+}
+.site-btn-brass:hover {
+  background: var(--color-brass-light);
+}
+.site-btn-ghost {
+  border: 1px solid currentColor;
+}

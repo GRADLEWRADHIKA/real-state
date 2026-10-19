@@ -1,0 +1,19 @@
+{
+  "name": "@estateflow/site",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Starwiz Realty public website (home, listings, property pages, about, contact), served inside the dashboard and the app",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./site.css": "./src/site.css"
+  },
+  "peerDependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.52.0",
+    "react": "^19.3.0",
+    "react-router": "^8.4.0"
+  }
+}

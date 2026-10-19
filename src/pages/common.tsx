@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { BellOff, BellRing, CheckCheck, CloudUpload, Fingerprint, Inbox, KeyRound, ListChecks, LogOut, MonitorSmartphone, Server, Trash2, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { BellOff, BellRing, Building2, CheckCheck, CloudUpload, Fingerprint, Inbox, KeyRound, ListChecks, LogOut, MonitorSmartphone, Server, Trash2, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { APP_VERSION, ROLE_LABEL, timeAgo, type NotificationItem, type User } from '@estateflow/shared';
 import { api, auth, errorMessage, getServerUrl } from '@/lib/api';
 import { useSession, useUser } from '@/lib/session';
@@ -104,6 +104,7 @@ export function More() {
       <Card className="divide-y divide-stone-100">
         {!accounts && <MenuRow to="/customers" icon={Users} label="Customers" detail="Bookings, payments and documents" />}
         {!accounts && <MenuRow to="/requests" icon={Inbox} label="Customer requests" detail="Visits, queries and complaints from the customer app" />}
+        <MenuRow to="/properties" icon={Building2} label="Properties" detail="Inventory with photos to share with buyers" />
         <MenuRow to="/tasks" icon={ListChecks} label="My tasks" />
         <MenuRow to="/notifications" icon={BellRing} label="Notifications" />
         <MenuRow to="/profile" icon={UserRound} label="Profile and settings" detail={pending.length ? `${pending.length} change${pending.length > 1 ? 's' : ''} waiting to sync` : undefined} />

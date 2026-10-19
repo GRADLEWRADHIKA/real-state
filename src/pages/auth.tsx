@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
-import { Download, Eye, EyeOff, Fingerprint, KeyRound, Server } from 'lucide-react';
+import { Building2, Download, Eye, EyeOff, Fingerprint, KeyRound, Server } from 'lucide-react';
 import { APP_VERSION } from '@estateflow/shared';
 import mark from '@/assets/starwiz-mark.png';
 import logo from '@/assets/starwiz-logo-512.png';
-import { api, defaultServerUrl, errorMessage, getServerUrl, setServerUrl } from '@/lib/api';
+import { api, defaultServerUrl, errorMessage, getServerUrl, setServerUrl, testServer } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Button, Field, Sheet } from '@/components/ui';
 
@@ -159,7 +160,10 @@ export function Login() {
           </div>
         </div>
       )}
-      <button type="button" onClick={() => setServerOpen(true)} className="mx-auto mt-6 inline-flex h-10 items-center gap-2 text-[13px] text-white/60">
+      <Link to="/" className="mx-auto mt-6 inline-flex h-10 items-center gap-2 text-[14px] font-semibold text-white/85">
+        <Building2 className="size-4" /> Browse our homes
+      </Link>
+      <button type="button" onClick={() => setServerOpen(true)} className="mx-auto mt-2 inline-flex h-10 items-center gap-2 text-[13px] text-white/60">
         <Server className="size-4" />
         {getServerUrl() || 'This server'}
       </button>
@@ -173,6 +177,13 @@ export function Login() {
 export function ServerSheet({ onClose, onSaved }: { onClose: () => void; onSaved?: () => unknown }) {
   const [url, setUrl] = useState(getServerUrl());
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof testServer>> | null>(null);
+  const test = async () => {
+    setTesting(true);
+    setResult(await testServer(url));
+    setTesting(false);
+  };
   const save = async () => {
     const clean = url.trim().replace(/\/+$/, '');
     if (clean && !/^https?:\/\/[^\s/]+/i.test(clean)) return toast.error('Enter a full address, like https://crm.yourcompany.in');
@@ -195,11 +206,35 @@ export function ServerSheet({ onClose, onSaved }: { onClose: () => void; onSaved
   return (
     <Sheet open onClose={onClose} title="Server address">
       <Field label="EstateFlow server" hint={defaultServerUrl ? `Leave empty to use ${defaultServerUrl}` : 'Leave empty to use the address this app was built with.'}>
-        {(id) => <input id={id} type="url" inputMode="url" autoCapitalize="off" className="field" placeholder="https://crm.yourcompany.in" value={url} onChange={(e) => setUrl(e.target.value)} />}
+        {(id) => (
+          <input
+            id={id}
+            type="url"
+            inputMode="url"
+            autoCapitalize="off"
+            className="field"
+            placeholder="https://crm.yourcompany.in"
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setResult(null);
+            }}
+          />
+        )}
       </Field>
-      <Button block loading={busy} onClick={save}>
-        Save
-      </Button>
+      {result && (
+        <p role="status" className={`rounded-xl px-3 py-2 text-[14px] ${result.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-800'}`}>
+          {result.ok ? `Connected in ${result.ms} ms${result.mode ? ` · ${result.mode} server` : ''}${result.version ? ` · v${result.version}` : ''}` : result.message}
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" loading={testing} onClick={test}>
+          Test connection
+        </Button>
+        <Button loading={busy} onClick={save}>
+          Save
+        </Button>
+      </div>
     </Sheet>
   );
 }

@@ -25,7 +25,9 @@ export async function takePhoto(): Promise<File | null> {
     const ext = photo.format === 'png' ? 'png' : 'jpg';
     return new File([blob], `site-visit-${Date.now()}.${ext}`, { type: blob.type || `image/${ext === 'jpg' ? 'jpeg' : ext}` });
   } catch (e) {
-    if (/cancel/i.test(String((e as Error)?.message))) return null;
+    const msg = String((e as Error)?.message);
+    if (/cancel/i.test(msg)) return null;
+    if (/denied|permission/i.test(msg)) throw new Error('EstateFlow cannot use the camera or photos. Allow it in Android Settings → Apps → EstateFlow → Permissions, then try again.');
     throw e;
   }
 }

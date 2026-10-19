@@ -4,20 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 import { Check, FileUp, FolderOpen, Inbox, Mail, Plus, Receipt } from 'lucide-react';
-import {
-  CONSTRUCTION_STAGES,
-  CUSTOMER_REQUEST_TYPES,
-  CUSTOMER_UPLOAD_TYPES,
-  UPLOAD_ACCEPT,
-  UPLOAD_MAX_BYTES,
-  firstName,
-  fmtDate,
-  greeting,
-  inr,
-  inrShort,
-  todayStr,
-  type PortalData,
-} from '@estateflow/shared';
+import { CONSTRUCTION_STAGES, CUSTOMER_REQUEST_TYPES, CUSTOMER_UPLOAD_TYPES, UPLOAD_ACCEPT, UPLOAD_MAX_BYTES, firstName, fmtDate, greeting, inr, inrShort, todayStr, type PortalData } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useOnline } from '@/lib/network';
 import { useUser } from '@/lib/session';
@@ -27,6 +14,7 @@ import { ContactButtons } from '@/components/contact';
 import { DocumentRow, useFilePicker } from '@/components/files';
 import { InstallmentList, TransactionList } from './staff/Customers';
 import { RequestCard } from './staff/Requests';
+import { SwipeGallery } from '@/components/gallery';
 
 export const usePortal = () => useQuery({ queryKey: ['portal'], queryFn: () => api.get<PortalData & { documents: (PortalData['documents'][number] & { mine?: boolean })[] }>('/portal') });
 
@@ -62,14 +50,8 @@ export function CustomerHome() {
             <>
               <div className="rounded-3xl bg-brand-950 p-5 text-white">
                 <p className="text-[13px] text-white/60">Your home</p>
-                <p className="mt-0.5 font-display text-[22px] leading-tight font-semibold">
-                  {p.property ? `${p.property.project} · ${p.property.unit_number}` : (p.customer.property_project ?? 'Your booking')}
-                </p>
-                {p.property && (
-                  <p className="text-[14px] text-white/70">
-                    {[p.property.type, p.property.bedrooms ? `${p.property.bedrooms} BHK` : null, p.property.area_sqft ? `${p.property.area_sqft} sq ft` : null].filter(Boolean).join(' · ')}
-                  </p>
-                )}
+                <p className="mt-0.5 font-display text-[22px] leading-tight font-semibold">{p.property ? `${p.property.project} · ${p.property.unit_number}` : (p.customer.property_project ?? 'Your booking')}</p>
+                {p.property && <p className="text-[14px] text-white/70">{[p.property.type, p.property.bedrooms ? `${p.property.bedrooms} BHK` : null, p.property.area_sqft ? `${p.property.area_sqft} sq ft` : null].filter(Boolean).join(' · ')}</p>}
                 <div className="mt-4">
                   <div className="flex justify-between text-[12px] text-white/70">
                     <span>{inrShort(f.paid)} paid</span>
@@ -89,6 +71,15 @@ export function CustomerHome() {
                     {f.next_installment.label} · due {fmtDate(f.next_installment.due_date)}
                   </p>
                 </Link>
+              )}
+
+              {p.property && (
+                <Section title="Your property">
+                  <div className="-mx-4 overflow-hidden">
+                    <SwipeGallery property={p.property} images={p.gallery ?? []} />
+                  </div>
+                  {(p.gallery ?? []).some((i) => i.is_ai_generated) && <p className="mt-2 text-[12px] text-stone-500">Artist's impressions are illustrations; the finished home may differ.</p>}
+                </Section>
               )}
 
               {p.property && (
@@ -141,7 +132,10 @@ export function CustomerHome() {
 
               {p.company.phone && (
                 <p className="px-1 pt-2 text-center text-[13px] text-stone-500">
-                  {p.company.name} · <a href={`tel:${p.company.phone}`} className="font-semibold text-brand-800">{p.company.phone}</a>
+                  {p.company.name} ·{' '}
+                  <a href={`tel:${p.company.phone}`} className="font-semibold text-brand-800">
+                    {p.company.phone}
+                  </a>
                 </p>
               )}
             </>
@@ -187,7 +181,11 @@ export function CustomerPayments() {
                 ]}
               />
               {tab === 'schedule' ? (
-                p.installments.length ? <InstallmentList items={p.installments} /> : <Empty icon={Receipt} title="No payment schedule yet" />
+                p.installments.length ? (
+                  <InstallmentList items={p.installments} />
+                ) : (
+                  <Empty icon={Receipt} title="No payment schedule yet" />
+                )
               ) : p.transactions.length ? (
                 <>
                   <TransactionList items={p.transactions} highlight={highlight} />

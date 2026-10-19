@@ -8,6 +8,8 @@ estateflow-app (phone, or http://localhost:7342 in a browser)  ──/api──�
 
 The `shared/` folder is the common code. The backend and the dashboard carry an identical copy.
 
+The public Starwiz website is built in too (its code is in `site/`, shared with the dashboard). Signed out, the app opens on the website, with **Sign in** in its menu; the sign-in screen has **Browse our homes** to go back. Signed in, property links such as `/homes/<slug>` still open, with **Back to the app**. For **Share** on published properties, set `websiteUrl` in `public/env.js` to the dashboard's address (links look like `<websiteUrl>/homes/<slug>`).
+
 ## Before you start
 
 - **Node.js 22.22 or newer.** Install the latest "LTS" version from nodejs.org. Check with `node -v`.
@@ -22,7 +24,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:7342 and switch the browser to phone view (F12, then the phone icon). With the demo backend, the sign-in screen has one-tap demo logins, including **Customer**. `/api` is forwarded to http://localhost:7341; to use another backend, run `$env:EF_API_PROXY="http://…:7341"` in PowerShell first.
+Open http://localhost:7342 and switch the browser to phone view (F12, then the phone icon). The website opens first; tap **Sign in** in its menu. With the demo backend, the sign-in screen has one-tap demo logins, including **Customer**. `/api` is forwarded to http://localhost:7341; to use another backend, run `$env:EF_API_PROXY="http://…:7341"` in PowerShell first.
 
 ## Build the Android APK
 
@@ -65,4 +67,4 @@ The package name is `com.thegradlew.estateflow`. Both the key and `keystore.prop
 |---|---|
 | `npm run build` | Web build into `dist/` (what Capacitor packs into the APK) |
 | `npm test` | Unit tests (14) |
-| `npm run test:e2e` | Phone-size browser tests (9). They need `estateflow-backend` installed in the folder next to this one, or set `EF_BACKEND_DIR`, plus `npx playwright install chromium` once |
+| `npm run test:e2e` | Phone-size browser tests (11). They need `estateflow-backend` installed in the folder next to this one, or set `EF_BACKEND_DIR`, plus `npx playwright install chromium` once |

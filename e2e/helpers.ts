@@ -33,7 +33,7 @@ export const osLinks = (page: Page) => page.evaluate(() => (window as unknown as
 export async function signIn(page: Page, who: keyof typeof USERS) {
   const [email, password] = USERS[who];
   await stubOsLinks(page);
-  await page.goto('/');
+  await page.goto('/login');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();

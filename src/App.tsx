@@ -4,6 +4,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Toaster } from 'sonner';
 import { CalendarCheck2, FileText, Home, Inbox, LayoutGrid, MapPinned, Menu, Receipt, Sun, UserRound, Users } from 'lucide-react';
 import type { User } from '@estateflow/shared';
+import { siteRoutes } from '@estateflow/site';
 import { clearCachedData, persistOptions, queryClient } from '@/lib/query';
 import { kv } from '@/lib/platform';
 import { SessionProvider, useSession, type SignOutReason } from '@/lib/session';
@@ -24,6 +25,10 @@ import Followups from '@/pages/staff/Followups';
 import Tasks from '@/pages/staff/Tasks';
 import Customers, { CustomerDetail } from '@/pages/staff/Customers';
 import StaffRequests from '@/pages/staff/Requests';
+import { Properties, PropertyDetail } from '@/pages/staff/Properties';
+
+/** Signed-in people can still open the website's property pages (shared links); this leads back. */
+const BACK_TO_APP = { to: '/', label: 'Back to the app' };
 
 /** Realtime updates and taps on on-device reminders, for whoever is signed in. */
 function useLiveApp(user: User) {
@@ -65,6 +70,7 @@ function StaffApp({ user }: { user: User }) {
 
   return (
     <Routes>
+      {siteRoutes({ withHome: false, account: BACK_TO_APP })}
       <Route element={<TabShell tabs={tabs} />}>
         <Route path="/today" element={<Today />} />
         {fieldStaff && (
@@ -76,6 +82,8 @@ function StaffApp({ user }: { user: User }) {
             <Route path="/followups" element={<Followups />} />
           </>
         )}
+        <Route path="/properties" element={<Properties />} />
+        <Route path="/properties/:id" element={<PropertyDetail />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/:id" element={<CustomerDetail />} />
@@ -101,6 +109,7 @@ function CustomerApp({ user }: { user: User }) {
   ];
   return (
     <Routes>
+      {siteRoutes({ withHome: false, account: BACK_TO_APP })}
       <Route element={<TabShell tabs={tabs} />}>
         <Route path="/home" element={<CustomerHome />} />
         <Route path="/payments" element={<CustomerPayments />} />
@@ -126,9 +135,11 @@ function Gate() {
   if (phase === 'booting') return <Booting />;
   if (phase === 'update-required') return <UpdateRequired />;
   if (phase === 'locked') return <Locked />;
+  // Signed out: the public website opens at "/", every other address shows the sign-in screen.
   if (phase === 'signed-out' || !user)
     return (
       <Routes>
+        {siteRoutes({ withHome: true, account: { to: '/login', label: 'Sign in' } })}
         <Route path="*" element={<Login />} />
       </Routes>
     );

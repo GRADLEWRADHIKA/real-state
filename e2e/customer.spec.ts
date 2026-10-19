@@ -57,7 +57,7 @@ test('customer raises a request and sees it listed', async ({ page }) => {
 });
 
 test('the demo server offers one-tap demo logins on the sign-in screen', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/login');
   await page.getByRole('button', { name: 'Customer', exact: true }).click();
   await expect(page.getByLabel('Email')).toHaveValue('customer@demo.com');
   await page.getByRole('button', { name: 'Sign in' }).click();

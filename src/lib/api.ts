@@ -1,19 +1,48 @@
 import { ApiError, createApiClient, type StoredSession } from '@estateflow/shared';
-import { kv, secure } from './platform';
+import { isNative, kv, secure } from './platform';
 
 declare global {
   interface Window {
-    ESTATEFLOW_CONFIG?: { apiUrl?: string };
+    ESTATEFLOW_CONFIG?: { apiUrl?: string; websiteUrl?: string };
   }
 }
 
 const SESSION_KEY = 'ef_app_session';
 const SERVER_KEY = 'ef_server_url';
 
-const clean = (u: string) => u.trim().replace(/\/+$/, '').replace(/\/api$/, '');
+const clean = (u: string) =>
+  u
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/api$/, '');
+
+/** Android emulator alias for the computer's localhost, where `npm run emulator:run` starts the demo API. */
+export const EMULATOR_SERVER_URL = 'http://10.0.2.2:7341';
+/** Dev and demo native builds (never release builds) default to the emulator address. */
+const emulatorDefault = isNative && (import.meta.env.DEV || import.meta.env.VITE_APP_MODE === 'demo') ? EMULATOR_SERVER_URL : '';
 
 /** Build-time / runtime default: /env.js wins over VITE_API_URL; empty means same origin. */
-export const defaultServerUrl = clean(window.ESTATEFLOW_CONFIG?.apiUrl || (import.meta.env.VITE_API_URL as string | undefined) || '');
+export const defaultServerUrl = clean(window.ESTATEFLOW_CONFIG?.apiUrl || (import.meta.env.VITE_API_URL as string | undefined) || emulatorDefault);
+
+/** Calls /api/health on an address without saving it. */
+export async function testServer(url: string): Promise<{ ok: true; ms: number; mode?: string; version?: string } | { ok: false; message: string }> {
+  const base = clean(url) || defaultServerUrl;
+  const started = Date.now();
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    const res = await fetch(`${base}/api/health`, { cache: 'no-store', signal: ctl.signal }).finally(() => clearTimeout(timer));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) return { ok: false, message: `The server answered but is not healthy (HTTP ${res.status}).` };
+    const meta = await fetch(`${base}/api/meta`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .catch(() => ({}));
+    return { ok: true, ms: Date.now() - started, mode: meta.mode, version: meta.version };
+  } catch (e) {
+    const hint = base.startsWith('http://') ? ' Check the server is running and that this is a debug build (release builds only allow https).' : ' Check the address and your internet connection.';
+    return { ok: false, message: `${(e as Error).name === 'AbortError' ? 'No answer within 8 seconds.' : 'Could not reach the server.'}${hint}` };
+  }
+}
 
 let serverUrl = defaultServerUrl;
 

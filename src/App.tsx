@@ -135,11 +135,11 @@ function Gate() {
   if (phase === 'booting') return <Booting />;
   if (phase === 'update-required') return <UpdateRequired />;
   if (phase === 'locked') return <Locked />;
-  // Signed out: the sign-in screen opens first; the website's property pages stay open from its "Browse our homes" link.
+  // Signed out: the website's landing page opens first, as on the dashboard; "Sign in" in its menu opens the sign-in screen.
   if (phase === 'signed-out' || !user)
     return (
       <Routes>
-        {siteRoutes({ withHome: false, account: { to: '/login', label: 'Sign in' } })}
+        {siteRoutes({ withHome: true, account: { to: '/login', label: 'Sign in' } })}
         <Route path="*" element={<Login />} />
       </Routes>
     );

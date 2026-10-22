@@ -1,8 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './helpers';
 
-test('signed out, the app opens on sign-in and leads to the homes and back', async ({ page }) => {
+test('signed out, the app opens on the landing page, leads to sign-in and the homes', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByLabel('Email')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('navigation', { name: 'Website' }).getByRole('link', { name: 'Sign in' }).click();
   await expect(page.getByLabel('Email')).toBeVisible();
   await page.getByRole('link', { name: 'Browse our homes' }).click();
   await expect(page).toHaveURL(/\/homes$/);

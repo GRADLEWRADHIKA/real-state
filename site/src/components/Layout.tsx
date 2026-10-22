@@ -155,7 +155,9 @@ function ContactBar() {
 
 export function Layout({ account }: { account: AccountLink }) {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   // The host app's own title comes back when the visitor leaves the website pages.
   const [hostTitle] = useState(() => document.title);
   useEffect(

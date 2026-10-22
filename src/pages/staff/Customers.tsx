@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import clsx from 'clsx';
-import { Download, Loader2, Search, UserRound } from 'lucide-react';
+import { Download, Loader2, Pencil, Search, UserRound } from 'lucide-react';
 import {
+  REGISTRY_STATUSES,
+  daysBetween,
   fmtDate,
   fmtDateShort,
   inr,
   inrShort,
   timeAgo,
+  todayStr,
   type Activity,
   type Customer,
   type CustomerRequest,
@@ -17,13 +21,16 @@ import {
   type Installment,
   type Paginated,
   type Property,
+  type RegistryStatus,
+  type Settings,
   type Transaction,
 } from '@estateflow/shared';
-import { api } from '@/lib/api';
-import { useUser } from '@/lib/session';
+import { api, errorMessage } from '@/lib/api';
+import { canWrite, useUser } from '@/lib/session';
+import { paymentReminderText, receiptText, registryReminderText } from '@/lib/messages';
 import { BellButton } from '@/components/shell';
-import { Avatar, Button, Card, Empty, KeyValue, Loadable, RowLink, Screen, Segmented, StatusBadge } from '@/components/ui';
-import { ContactButtons, CallChip } from '@/components/contact';
+import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, RowLink, Screen, Segmented, Sheet, StatusBadge, type Tone } from '@/components/ui';
+import { ContactButtons, CallChip, WhatsAppLink } from '@/components/contact';
 import { DocumentRow, useDownload } from '@/components/files';
 import { RequestCard } from './Requests';
 
@@ -164,6 +171,105 @@ export function CustomerDetail() {
   );
 }
 
+/** Company name for message signatures, from the settings every signed-in person can read. */
+function useCompanyName() {
+  const q = useQuery({ queryKey: ['settings'], queryFn: () => api.get<Settings>('/settings'), staleTime: 60 * 60_000 });
+  return q.data?.company?.name ?? '';
+}
+
+const REGISTRY_TONES: Record<RegistryStatus, Tone> = { 'Not done': 'gray', 'Date fixed': 'gold', Done: 'green' };
+export const RegistryBadge = ({ status }: { status?: RegistryStatus | null }) => <Badge tone={REGISTRY_TONES[status ?? 'Not done'] ?? 'gray'}>{status ?? 'Not done'}</Badge>;
+
+export function daysLeftLabel(date: string) {
+  const d = daysBetween(todayStr(), date);
+  if (d === 0) return 'Today';
+  if (d === 1) return 'Tomorrow';
+  return d > 0 ? `${d} days left` : `${-d} days ago`;
+}
+
+function RegistryCard({ c, company }: { c: CustomerDetailData; company: string }) {
+  const user = useUser();
+  const [editing, setEditing] = useState(false);
+  const status = c.registry_status ?? 'Not done';
+  const canEdit = canWrite(user) && (user.role === 'manager' || user.role === 'sales');
+  const property = [c.property_project, c.property_unit].filter(Boolean).join(' ') || null;
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold">Registry</p>
+          <RegistryBadge status={status} />
+        </div>
+        {canEdit && (
+          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditing(true)}>
+            Update
+          </Button>
+        )}
+      </div>
+      {status !== 'Not done' && (c.registry_date || c.registry_number) && (
+        <div className="mt-1 divide-y divide-stone-100">
+          {c.registry_date && (
+            <KeyValue label="Date">
+              {fmtDate(c.registry_date)}
+              {status === 'Date fixed' && <span className="block text-[12px] font-normal text-stone-500">{daysLeftLabel(c.registry_date)}</span>}
+            </KeyValue>
+          )}
+          {c.registry_number && <KeyValue label="Registry no.">{c.registry_number}</KeyValue>}
+        </div>
+      )}
+      {status === 'Date fixed' && c.registry_date && daysBetween(todayStr(), c.registry_date) >= 0 && (
+        <WhatsAppLink phone={c.phone} label="Registry reminder" className="mt-2" text={registryReminderText(c.name, c.registry_date, property, company)} />
+      )}
+      {editing && <RegistrySheet c={c} onClose={() => setEditing(false)} />}
+    </Card>
+  );
+}
+
+function RegistrySheet({ c, onClose }: { c: CustomerDetailData; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [status, setStatus] = useState<RegistryStatus>(c.registry_status ?? 'Not done');
+  const [date, setDate] = useState(c.registry_date ?? '');
+  const [number, setNumber] = useState(c.registry_number ?? '');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (status === 'Date fixed' && !date) return void toast.error('Choose the registry date');
+    if (status === 'Done' && !number.trim()) return void toast.error('Enter the registry number');
+    setBusy(true);
+    try {
+      await api.put(`/customers/${c.id}`, {
+        registry_status: status,
+        registry_date: status === 'Not done' ? null : date || null,
+        registry_number: status === 'Done' ? number.trim() : null,
+      });
+      void qc.invalidateQueries({ queryKey: ['customers'] });
+      toast.success('Registry updated');
+      onClose();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet open onClose={onClose} title={`Registry · ${c.name}`}>
+      <Segmented value={status} onChange={setStatus} options={REGISTRY_STATUSES.map((s) => ({ value: s, label: s }))} />
+      {status !== 'Not done' && (
+        <Field label="Registry date" hint={status === 'Date fixed' ? 'Required. The customer is reminded before the date.' : 'Optional'}>
+          {(id) => <input id={id} type="date" className="field" value={date} onChange={(e) => setDate(e.target.value)} />}
+        </Field>
+      )}
+      {status === 'Done' && (
+        <Field label="Registry number" hint="Required">
+          {(id) => <input id={id} className="field" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="As on the registry document" />}
+        </Field>
+      )}
+      <Button block size="lg" onClick={save} loading={busy}>
+        Save
+      </Button>
+    </Sheet>
+  );
+}
+
 function Money({ label, value, tone }: { label: string; value: number; tone?: 'red' | 'green' }) {
   return (
     <div className="card px-3 py-3">
@@ -175,6 +281,7 @@ function Money({ label, value, tone }: { label: string; value: number; tone?: 'r
 
 function Overview({ c }: { c: CustomerDetailData }) {
   const f = c.financials;
+  const company = useCompanyName();
   return (
     <>
       <div className="grid grid-cols-3 gap-2">
@@ -196,11 +303,25 @@ function Overview({ c }: { c: CustomerDetailData }) {
           </p>
         )}
       </div>
+      <RegistryCard c={c} company={company} />
       <Card className="divide-y divide-stone-100 px-4">
         <KeyValue label="Booked on">{fmtDate(c.booking_date)}</KeyValue>
+        {(c.property_block || c.property?.block) && <KeyValue label="Block">{c.property_block || c.property?.block}</KeyValue>}
         {c.deal && <KeyValue label="Deal stage">{c.deal.stage}</KeyValue>}
         {c.property?.construction_stage && <KeyValue label="Construction">{c.property.construction_stage}</KeyValue>}
         {c.agent_name && <KeyValue label="Agent">{c.agent_name}</KeyValue>}
+        {c.broker_name && <KeyValue label="Broker">{c.broker_name}</KeyValue>}
+        {c.nominee_name && (
+          <KeyValue label="Nominee">
+            {c.nominee_name}
+            {c.nominee_relation && <span className="font-normal text-stone-500"> ({c.nominee_relation})</span>}
+            {c.nominee_phone && (
+              <a href={`tel:${c.nominee_phone}`} className="num block text-[13px] text-brand-800">
+                {c.nominee_phone}
+              </a>
+            )}
+          </KeyValue>
+        )}
         {c.email && <KeyValue label="Email">{c.email}</KeyValue>}
         {c.city && <KeyValue label="City">{c.city}</KeyValue>}
       </Card>
@@ -247,7 +368,7 @@ export function ReceiptButton({ t }: { t: Pick<Transaction, 'id' | 'code' | 'rec
   );
 }
 
-export function InstallmentList({ items }: { items: Installment[] }) {
+export function InstallmentList({ items, action }: { items: Installment[]; action?: (i: Installment) => ReactNode }) {
   return (
     <Card className="divide-y divide-stone-100">
       {items.map((i) => (
@@ -260,14 +381,17 @@ export function InstallmentList({ items }: { items: Installment[] }) {
             <p className="num font-semibold">{inr(i.amount)}</p>
             {i.paid_amount > 0 && i.balance > 0 && <p className="num text-[12px] text-stone-500">{inr(i.balance)} left</p>}
           </div>
-          <StatusBadge status={i.status} />
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <StatusBadge status={i.status} />
+            {action?.(i)}
+          </div>
         </div>
       ))}
     </Card>
   );
 }
 
-export function TransactionList({ items, highlight }: { items: Transaction[]; highlight?: number }) {
+export function TransactionList({ items, highlight, action }: { items: Transaction[]; highlight?: number; action?: (t: Transaction) => ReactNode }) {
   return (
     <Card className="divide-y divide-stone-100">
       {items.map((t) => (
@@ -279,6 +403,7 @@ export function TransactionList({ items, highlight }: { items: Transaction[]; hi
               {t.installment_label ? ` · ${t.installment_label}` : ''}
             </p>
             {t.receipt_number && <p className="text-[12px] text-stone-400">Receipt {t.receipt_number}</p>}
+            {action && <div className="mt-1.5">{action(t)}</div>}
           </div>
           {t.status !== 'Completed' && <StatusBadge status={t.status} />}
           <ReceiptButton t={t} />
@@ -289,12 +414,27 @@ export function TransactionList({ items, highlight }: { items: Transaction[]; hi
 }
 
 function PaymentsTab({ c }: { c: CustomerDetailData }) {
+  const company = useCompanyName();
+  const soon = todayStr(7);
   return (
     <>
       <h2 className="label-xs px-1 pt-1">Schedule</h2>
-      {c.installments.length ? <InstallmentList items={c.installments} /> : <p className="px-1 text-[14px] text-stone-500">No installments.</p>}
+      {c.installments.length ? (
+        <InstallmentList
+          items={c.installments}
+          action={(i) =>
+            i.balance > 0 && (i.status === 'Overdue' || i.due_date <= soon) ? <WhatsAppLink phone={c.phone} label="Payment reminder" text={paymentReminderText(c.name, i, company)} /> : null
+          }
+        />
+      ) : (
+        <p className="px-1 text-[14px] text-stone-500">No installments.</p>
+      )}
       <h2 className="label-xs px-1 pt-2">Payments received</h2>
-      {c.transactions.length ? <TransactionList items={c.transactions} /> : <p className="px-1 text-[14px] text-stone-500">No payments yet.</p>}
+      {c.transactions.length ? (
+        <TransactionList items={c.transactions} action={(t) => (t.status === 'Completed' ? <WhatsAppLink phone={c.phone} label="Send receipt" text={receiptText(c.name, t, company)} /> : null)} />
+      ) : (
+        <p className="px-1 text-[14px] text-stone-500">No payments yet.</p>
+      )}
     </>
   );
 }

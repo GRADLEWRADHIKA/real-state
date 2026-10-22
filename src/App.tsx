@@ -135,11 +135,11 @@ function Gate() {
   if (phase === 'booting') return <Booting />;
   if (phase === 'update-required') return <UpdateRequired />;
   if (phase === 'locked') return <Locked />;
-  // Signed out: the public website opens at "/", every other address shows the sign-in screen.
+  // Signed out: the sign-in screen opens first; the website's property pages stay open from its "Browse our homes" link.
   if (phase === 'signed-out' || !user)
     return (
       <Routes>
-        {siteRoutes({ withHome: true, account: { to: '/login', label: 'Sign in' } })}
+        {siteRoutes({ withHome: false, account: { to: '/login', label: 'Sign in' } })}
         <Route path="*" element={<Login />} />
       </Routes>
     );

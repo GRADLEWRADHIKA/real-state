@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { Check, FileUp, FolderOpen, Inbox, Mail, Plus, Receipt } from 'lucide-react';
+import { Check, FileText, FileUp, FolderOpen, Inbox, Mail, Plus, Receipt } from 'lucide-react';
 import { CONSTRUCTION_STAGES, CUSTOMER_REQUEST_TYPES, CUSTOMER_UPLOAD_TYPES, UPLOAD_ACCEPT, UPLOAD_MAX_BYTES, firstName, fmtDate, greeting, inr, inrShort, todayStr, type PortalData } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { useOnline } from '@/lib/network';
@@ -12,7 +12,7 @@ import { BellButton } from '@/components/shell';
 import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, Screen, Section, Segmented, Sheet } from '@/components/ui';
 import { ContactButtons } from '@/components/contact';
 import { DocumentRow, useFilePicker } from '@/components/files';
-import { InstallmentList, TransactionList } from './staff/Customers';
+import { InstallmentList, RegistryBadge, TransactionList, daysLeftLabel } from './staff/Customers';
 import { RequestCard } from './staff/Requests';
 import { SwipeGallery } from '@/components/gallery';
 
@@ -35,6 +35,27 @@ function StageTrack({ stage }: { stage?: string | null }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+function RegistryStatusCard({ c }: { c: PortalData['customer'] }) {
+  const status = c.registry_status ?? 'Not done';
+  const line =
+    status === 'Done'
+      ? `Done${c.registry_number ? ` – No. ${c.registry_number}` : ''}${c.registry_date ? ` · ${fmtDate(c.registry_date)}` : ''}`
+      : status === 'Date fixed'
+        ? `Date fixed – ${fmtDate(c.registry_date)}`
+        : 'Not done yet';
+  return (
+    <Card className={clsx('flex items-center gap-3 p-4', status === 'Date fixed' && 'border-gold-200')}>
+      <FileText className="size-5 shrink-0 text-brand-700" />
+      <div className="min-w-0 flex-1">
+        <p className="label-xs">Registry</p>
+        <p className="mt-0.5 font-semibold">{line}</p>
+        {status === 'Date fixed' && c.registry_date && <p className="text-[13px] text-stone-500">{daysLeftLabel(c.registry_date)} · Please keep your documents ready.</p>}
+      </div>
+      <RegistryBadge status={status} />
+    </Card>
   );
 }
 
@@ -72,6 +93,8 @@ export function CustomerHome() {
                   </p>
                 </Link>
               )}
+
+              <RegistryStatusCard c={p.customer} />
 
               {p.property && (
                 <Section title="Your property">
@@ -115,6 +138,12 @@ export function CustomerHome() {
                 {p.deal && <KeyValue label="Booking">{p.deal.code}</KeyValue>}
                 {p.deal && <KeyValue label="Stage">{p.deal.stage}</KeyValue>}
                 <KeyValue label="Booked on">{fmtDate(p.customer.booking_date)}</KeyValue>
+                {p.customer.nominee_name && (
+                  <KeyValue label="Nominee">
+                    {p.customer.nominee_name}
+                    {p.customer.nominee_relation && <span className="font-normal text-stone-500"> ({p.customer.nominee_relation})</span>}
+                  </KeyValue>
+                )}
                 {p.property?.rera_number && <KeyValue label="RERA">{p.property.rera_number}</KeyValue>}
               </Card>
 

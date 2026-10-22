@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -11,7 +11,9 @@ import path from 'node:path';
 const appDir = path.resolve(import.meta.dirname, '..');
 // The phone tests start a demo copy of estateflow-backend from the folder next to this one.
 const backendDir = path.resolve(appDir, process.env.EF_BACKEND_DIR || '../estateflow-backend');
-const bin = (name: string, dir = appDir) => path.join(dir, 'node_modules', '.bin', name);
+const isWin = process.platform === 'win32';
+// On Windows the .bin shims are .cmd files, which Node only starts through a shell.
+const bin = (name: string, dir = appDir) => path.join(dir, 'node_modules', '.bin', isWin ? `${name}.cmd` : name);
 
 /** Distinct free ports: all are held open together so the OS cannot hand out the same one twice. */
 async function freePorts(n: number): Promise<number[]> {
@@ -47,7 +49,7 @@ async function waitFor(url: string, proc: ChildProcess, label: string, timeoutMs
 }
 
 function start(cmd: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, label: string) {
-  const proc = spawn(cmd, args, { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const proc = spawn(isWin ? `"${cmd}"` : cmd, args, { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'], shell: isWin });
   const log: string[] = [];
   const keep = (b: Buffer) => {
     log.push(b.toString());
@@ -92,8 +94,11 @@ export default async function globalSetup() {
 
   return async () => {
     stopping = true;
-    app.kill('SIGTERM');
-    api.kill('SIGTERM');
+    for (const proc of [app, api]) {
+      // proc is the shell on Windows; end the whole tree so the servers do not outlive the run.
+      if (isWin && proc.pid) spawnSync('taskkill', ['/pid', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
+      else proc.kill('SIGTERM');
+    }
     await new Promise((r) => setTimeout(r, 500));
     fs.rmSync(tmp, { recursive: true, force: true });
   };

@@ -72,6 +72,26 @@ export function CallChip({ phone, leadId, name }: { phone?: string | null; leadI
   );
 }
 
+/**
+ * Opens WhatsApp with a pre-written message (wa.me click-to-chat, no API). Like the WhatsApp contact
+ * button it is a plain external link, so on the phone the OS hands it to the WhatsApp app.
+ */
+export function WhatsAppLink({ phone, text, label, className }: { phone?: string | null; text: string; label: string; className?: string }) {
+  if (!phone) return null;
+  return (
+    <a
+      href={waHref(phone, text)}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={clsx('inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2.5 text-[12px] font-semibold text-brand-800 active:bg-brand-100', className)}
+    >
+      <MessageCircle className="size-3.5" />
+      {label}
+    </a>
+  );
+}
+
 export function MapsLink({ query, lat, lng, children }: { query: string; lat?: number | null; lng?: number | null; children?: React.ReactNode }) {
   return (
     <a href={mapsHref(query, lat, lng)} className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-800">

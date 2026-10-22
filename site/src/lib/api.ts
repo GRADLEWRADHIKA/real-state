@@ -87,6 +87,15 @@ export class ApiError extends Error {
   }
 }
 
+/** A web page instead of JSON means the API address points at a website (or the app itself), not the API. */
+async function readJson(res: Response) {
+  if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
+    if (res.ok) throw new ApiError('We could not reach our listings right now. Please try again shortly.', 0);
+    return {};
+  }
+  return res.json().catch(() => ({}));
+}
+
 export async function get<T>(path: string, query?: Record<string, string | number | undefined>): Promise<T> {
   const qs = query ? new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== '') as [string, string][]).toString() : '';
   let res: Response;
@@ -95,7 +104,7 @@ export async function get<T>(path: string, query?: Record<string, string | numbe
   } catch {
     throw new ApiError('We could not reach our listings right now. Please try again shortly.', 0);
   }
-  const body = await res.json().catch(() => ({}));
+  const body = await readJson(res);
   if (!res.ok) throw new ApiError(body.error || body.message || 'Something went wrong', res.status);
   return body as T;
 }
@@ -107,7 +116,7 @@ export async function post<T>(path: string, data: unknown): Promise<T> {
   } catch {
     throw new ApiError('No connection. Please check your internet and try again, or call us.', 0);
   }
-  const body = await res.json().catch(() => ({}));
+  const body = await readJson(res);
   if (!res.ok) throw new ApiError(body.error || body.message || 'Your message could not be sent', res.status);
   return body as T;
 }

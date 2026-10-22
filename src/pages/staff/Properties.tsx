@@ -10,15 +10,22 @@ import { ProgressiveImage, SwipeGallery, websiteLink, shareProperty } from '@/co
 /** Property browser for field staff: image cards, filters, and a detail page with the gallery. */
 export function Properties() {
   const [type, setType] = useState<string>('all');
+  const [block, setBlock] = useState<string>('all');
   const [q, setQ] = useState('');
   const query = useQuery({
-    queryKey: ['properties', type, q],
-    queryFn: () => api.get<{ data: Property[] }>('/properties', { type: type === 'all' ? undefined : type, q: q || undefined, limit: 100 }),
+    queryKey: ['properties', type, block, q],
+    queryFn: () =>
+      api.get<{ data: Property[]; meta?: { blocks?: string[] } }>('/properties', { type: type === 'all' ? undefined : type, block: block === 'all' ? undefined : block, q: q || undefined, limit: 100 }),
+    placeholderData: (prev) => prev,
   });
+  const blocks = query.data?.meta?.blocks ?? [];
   return (
     <Screen title="Properties" back="/more">
       <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search project, unit or location" className="input" aria-label="Search properties" />
       <Segmented value={type} onChange={setType} className="overflow-x-auto" options={[{ value: 'all', label: 'All' }, ...PROPERTY_TYPES.filter((t) => t !== 'Commercial').map((t) => ({ value: t, label: t }))]} />
+      {(blocks.length > 0 || block !== 'all') && (
+        <Segmented value={block} onChange={setBlock} className="overflow-x-auto" options={[{ value: 'all', label: 'All blocks' }, ...blocks.map((b) => ({ value: b, label: `Block ${b}` }))]} />
+      )}
       <Loadable q={query} skeleton={<ListSkeleton rows={3} />}>
         {({ data }) =>
           data.length ? (
@@ -35,7 +42,8 @@ export function Properties() {
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-bold text-ink">{p.name}</p>
                       <p className="truncate text-[13px] text-stone-500">
-                        {p.project} · {p.unit_number}
+                        {p.project}
+                        {p.block ? ` · Block ${p.block}` : ''} · {p.unit_number}
                       </p>
                     </div>
                     <p className="shrink-0 font-display text-[17px] font-semibold text-brand-950">{inrShort(p.price)}</p>
@@ -88,6 +96,8 @@ export function PropertyDetail() {
               </div>
               <Card className="p-4">
                 <KeyValue label="Price">{inr(p.price)}</KeyValue>
+                {p.rate_per_sqft ? <KeyValue label="Rate">{inr(p.rate_per_sqft)} / sq ft</KeyValue> : null}
+                {p.block && <KeyValue label="Block">{p.block}</KeyValue>}
                 {p.possession && <KeyValue label="Possession">{p.possession}</KeyValue>}
                 {p.rera_number && <KeyValue label="RERA">{p.rera_number}</KeyValue>}
                 <KeyValue label="Website">{websiteLink(p) ? 'Published' : 'Not published'}</KeyValue>

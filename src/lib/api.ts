@@ -18,8 +18,12 @@ const clean = (u: string) =>
 
 /** Android emulator alias for the computer's localhost, where `npm run emulator:run` starts the demo API. */
 export const EMULATOR_SERVER_URL = 'http://10.0.2.2:7341';
-/** Dev and demo native builds (never release builds) default to the emulator address. */
-const emulatorDefault = isNative && (import.meta.env.DEV || import.meta.env.VITE_APP_MODE === 'demo') ? EMULATOR_SERVER_URL : '';
+/**
+ * Inside the Android app "same origin" is the app itself (https://localhost), which answers every /api call
+ * with index.html. So a native build without an address defaults to the emulator; release builds always
+ * get VITE_API_URL from `npm run build:release`.
+ */
+const emulatorDefault = isNative ? EMULATOR_SERVER_URL : '';
 
 /** Build-time / runtime default: /env.js wins over VITE_API_URL; empty means same origin. */
 export const defaultServerUrl = clean(window.ESTATEFLOW_CONFIG?.apiUrl || (import.meta.env.VITE_API_URL as string | undefined) || emulatorDefault);

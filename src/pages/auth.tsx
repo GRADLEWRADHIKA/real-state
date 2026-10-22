@@ -160,7 +160,7 @@ export function Login() {
           </div>
         </div>
       )}
-      <Link to="/" className="mx-auto mt-6 inline-flex h-10 items-center gap-2 text-[14px] font-semibold text-white/85">
+      <Link to="/homes" className="mx-auto mt-6 inline-flex h-10 items-center gap-2 text-[14px] font-semibold text-white/85">
         <Building2 className="size-4" /> Browse our homes
       </Link>
       <button type="button" onClick={() => setServerOpen(true)} className="mx-auto mt-2 inline-flex h-10 items-center gap-2 text-[13px] text-white/60">

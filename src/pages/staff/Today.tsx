@@ -3,10 +3,11 @@ import { Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { BellRing, CalendarCheck, Check, IndianRupee, MapPin, PhoneCall, Sun } from 'lucide-react';
-import { firstName, fmtDateLong, fmtDateShort, fmtTime, greeting, inr, relativeDay, type Followup, type SiteVisit, type Task } from '@estateflow/shared';
+import { BellRing, CalendarCheck, Check, Clock, IndianRupee, LogIn, LogOut, MapPin, PhoneCall, Sun, Target } from 'lucide-react';
+import { firstName, fmtDateLong, fmtDateShort, fmtTime, greeting, inr, inrShort, relativeDay, type AttendanceRecord, type Followup, type SiteVisit, type Task, type TargetRow } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { kv } from '@/lib/platform';
+import { currentPosition } from '@/lib/device';
 import { canWrite, useUser } from '@/lib/session';
 import { enableReminders, remindersOn, remindersSupported } from '@/lib/reminders';
 import { BellButton } from '@/components/shell';
@@ -67,6 +68,91 @@ function ReminderPrompt() {
           </Button>
         </div>
       </div>
+    </Card>
+  );
+}
+
+const clock = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase() : '');
+
+/** Today's attendance: check in (with GPS when the phone gives a fix) and check out. */
+function AttendanceCard() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['attendance', 'me'], queryFn: () => api.get<AttendanceRecord>('/staff/attendance/me') });
+  const [busy, setBusy] = useState<'in' | 'out' | null>(null);
+  const a = q.data;
+
+  const act = async (kind: 'in' | 'out') => {
+    setBusy(kind);
+    try {
+      const body = kind === 'in' ? await currentPosition().then((pos) => (pos ? { lat: pos.lat, lng: pos.lng } : {})) : {};
+      const r = await api.post<AttendanceRecord>(`/staff/attendance/check-${kind}`, body);
+      qc.setQueryData(['attendance', 'me'], r);
+      toast.success(kind === 'in' ? `Checked in at ${clock(r.check_in_at)}` : `Checked out at ${clock(r.check_out_at)}`);
+    } catch (e) {
+      toast.error(errorMessage(e));
+      void q.refetch();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (!a) return null;
+  const state = a.check_out_at ? 'Checked out' : a.check_in_at ? 'Checked in' : a.status ? a.status : 'Not checked in';
+  return (
+    <Card className="flex items-center gap-3 p-4">
+      <Clock className="size-5 shrink-0 text-brand-700" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold">Attendance</p>
+          <Badge tone={a.check_out_at ? 'gray' : a.check_in_at ? 'green' : a.status === 'Absent' ? 'red' : a.status ? 'amber' : 'gray'}>{state}</Badge>
+        </div>
+        <p className="num text-[13px] text-stone-500">
+          {a.check_in_at ? `In ${clock(a.check_in_at)}` : 'You have not checked in today'}
+          {a.check_out_at && ` · Out ${clock(a.check_out_at)}`}
+        </p>
+      </div>
+      {!a.check_in_at ? (
+        <Button size="sm" icon={LogIn} loading={busy === 'in'} onClick={() => void act('in')}>
+          Check in
+        </Button>
+      ) : !a.check_out_at ? (
+        <Button size="sm" variant="secondary" icon={LogOut} loading={busy === 'out'} onClick={() => void act('out')}>
+          Check out
+        </Button>
+      ) : null}
+    </Card>
+  );
+}
+
+/** This month's booking target: own row for sales, own row (or the team total) for the manager. */
+function TargetCard({ userId }: { userId: number }) {
+  const q = useQuery({ queryKey: ['targets', 'me'], queryFn: () => api.get<{ data: TargetRow[]; meta: { month: string } }>('/staff/targets') });
+  if (!q.data) return null;
+  const own = q.data.data.find((r) => r.user_id === userId);
+  const rows = own ? [own] : q.data.data;
+  const target = rows.reduce((s, r) => s + (r.monthly_target || 0), 0);
+  const achieved = rows.reduce((s, r) => s + (r.achieved || 0), 0);
+  const bookings = rows.reduce((s, r) => s + (r.bookings || 0), 0);
+  if (!target && !achieved) return null;
+  const pct = target ? Math.min(100, (achieved / target) * 100) : 100;
+  return (
+    <Card className="p-4">
+      <div className="flex items-center gap-2">
+        <Target className="size-5 shrink-0 text-brand-700" />
+        <p className="flex-1 font-semibold">{own ? 'This month' : 'Team this month'}</p>
+        <p className="text-[13px] text-stone-500">
+          {bookings} booking{bookings === 1 ? '' : 's'}
+        </p>
+      </div>
+      <p className="num mt-2 text-[15px]">
+        <span className="font-semibold text-brand-900">{inrShort(achieved)}</span>
+        {target > 0 && <span className="text-stone-500"> of {inrShort(target)}</span>}
+      </p>
+      {target > 0 && (
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+          <div className={clsx('h-full rounded-full', pct >= 100 ? 'bg-gold-400' : 'bg-brand-700')} style={{ width: `${pct}%` }} />
+        </div>
+      )}
     </Card>
   );
 }
@@ -146,6 +232,8 @@ export default function Today() {
     <Screen title={`${greeting()}, ${firstName(user.name)}`} subtitle={fmtDateLong(q.data?.date ?? new Date().toISOString().slice(0, 10))} actions={<BellButton />}>
       {!editable && <ViewOnlyNote />}
       <ReminderPrompt />
+      {editable && <AttendanceCard />}
+      {(user.role === 'sales' || user.role === 'manager') && <TargetCard userId={user.id} />}
       <Loadable q={q}>
         {(d) => {
           const followups = [...d.followups.overdue, ...d.followups.today];

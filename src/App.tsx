@@ -27,6 +27,7 @@ import Customers, { CustomerDetail } from '@/pages/staff/Customers';
 import StaffRequests from '@/pages/staff/Requests';
 import { Properties, PropertyDetail } from '@/pages/staff/Properties';
 import { Brokers, Expenses, Finance, Staff, canBrokers, canFinance, canStaff } from '@/pages/staff/Office';
+import { PrivateDocuments, canPrivateDocs } from '@/pages/staff/PrivateDocs';
 
 /** Signed-in people can still open the website's property pages (shared links); this leads back. */
 const BACK_TO_APP = { to: '/', label: 'Back to the app' };
@@ -100,6 +101,7 @@ function StaffApp({ user }: { user: User }) {
           </>
         )}
         {canBrokers(user) && <Route path="/brokers" element={<Brokers />} />}
+        {canPrivateDocs(user) && <Route path="/my-documents" element={<PrivateDocuments />} />}
         {canStaff(user) && <Route path="/staff" element={<Staff />} />}
       </Route>
       <Route path="*" element={<Navigate to="/today" replace />} />

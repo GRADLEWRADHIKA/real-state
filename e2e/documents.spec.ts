@@ -42,3 +42,23 @@ test('a customer can scan their own document from the app', async ({ page }) => 
   await expect(page.getByText('Scanned 1 page and saved as PDF')).toBeVisible();
   await expect(page.getByText(/PAN \(scan /).first()).toBeVisible();
 });
+
+test('the owner scans a personal paper that accounts cannot see', async ({ page }) => {
+  await page.goto('/login');
+  const photo = await page.screenshot({ type: 'jpeg' });
+  await signIn(page, 'admin');
+  await page.goto('/my-documents');
+  await page.getByRole('tab', { name: /Personal/ }).click();
+  await page.getByRole('button', { name: 'Upload or scan to Personal' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Add to Personal' });
+  await sheet.getByLabel('Document type').selectOption('Tax / ITR');
+  await sheet.locator('input[type=file][accept="image/*"]').setInputFiles({ name: 'itr.jpg', mimeType: 'image/jpeg', buffer: photo });
+  await sheet.getByRole('button', { name: /Save 1 page as PDF/ }).click();
+  await expect(page.getByText('Scanned 1 page and saved as PDF')).toBeVisible();
+  await expect(page.getByText(/Tax - ITR \(scan /)).toBeVisible();
+
+  const accounts = await apiAs('accounts');
+  const theirs = await (await accounts.get('/api/vault?folder=personal')).json();
+  expect(theirs.data.some((d: { name: string }) => d.name.startsWith('Tax - ITR (scan'))).toBe(false);
+  await accounts.dispose();
+});

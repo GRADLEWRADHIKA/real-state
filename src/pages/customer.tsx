@@ -11,7 +11,7 @@ import { useUser } from '@/lib/session';
 import { BellButton } from '@/components/shell';
 import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, Screen, Section, Segmented, Sheet } from '@/components/ui';
 import { ContactButtons } from '@/components/contact';
-import { DocumentRow, useFilePicker } from '@/components/files';
+import { DocumentSections, useFilePicker } from '@/components/files';
 import { InstallmentList, RegistryBadge, TransactionList, daysLeftLabel } from './staff/Customers';
 import { RequestCard } from './staff/Requests';
 import { SwipeGallery } from '@/components/gallery';
@@ -244,11 +244,7 @@ export function CustomerDocuments() {
       <Loadable q={q}>
         {(p) =>
           p.documents.length ? (
-            <Card className="divide-y divide-stone-100">
-              {p.documents.map((d) => (
-                <DocumentRow key={d.id} d={{ ...d, entity_type: 'customer', entity_id: p.customer.id }} />
-              ))}
-            </Card>
+            <DocumentSections docs={p.documents.map((d) => ({ ...d, entity_type: 'customer', entity_id: p.customer.id }))} />
           ) : (
             <Empty icon={FolderOpen} title="No documents yet" body="Your agreement, receipts and KYC documents appear here." />
           )

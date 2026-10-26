@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Download, FileText, ImageOff, Loader2 } from 'lucide-react';
-import { fileSize, fmtDate, type DocumentItem } from '@estateflow/shared';
+import { DOCUMENT_SECTIONS, documentSection, fileSize, fmtDate, type DocumentItem } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { saveFile } from '@/lib/platform';
 
@@ -83,4 +83,38 @@ export function useFilePicker(accept: string, onPick: (f: File) => void, capture
     />
   );
   return { open: () => ref.current?.click(), input };
+}
+
+/** A customer's documents grouped by section (KYC, booking, payments, land records, registry, other), with missing papers named. */
+export function DocumentSections({ docs }: { docs: (DocumentItem & { mine?: boolean })[] }) {
+  return (
+    <div className="space-y-3">
+      {DOCUMENT_SECTIONS.map((section) => {
+        const mine = docs.filter((d) => documentSection(d.doc_type).key === section.key);
+        const have = new Set(mine.map((d) => d.doc_type));
+        const missing = section.required.filter((t) => !have.has(t));
+        if (!mine.length && !missing.length) return null;
+        return (
+          <section key={section.key} aria-labelledby={`docs-${section.key}`} className="card overflow-hidden">
+            <div className="px-4 pt-3 pb-2">
+              <h2 id={`docs-${section.key}`} className="text-[14px] font-bold text-brand-900">
+                {section.title} <span className="font-medium text-stone-400">· {section.hindi}</span>
+              </h2>
+              <p className="text-[12px] text-stone-500">
+                {mine.length} {mine.length === 1 ? 'document' : 'documents'}
+                {missing.length > 0 && <span className="text-amber-700"> · Missing: {missing.join(', ')}</span>}
+              </p>
+            </div>
+            {mine.length > 0 && (
+              <div className="divide-y divide-stone-100 border-t border-stone-100">
+                {mine.map((d) => (
+                  <DocumentRow key={d.id} d={d} />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
 }

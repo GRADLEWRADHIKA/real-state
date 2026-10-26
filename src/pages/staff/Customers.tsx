@@ -31,7 +31,7 @@ import { paymentReminderText, receiptText, registryReminderText } from '@/lib/me
 import { BellButton } from '@/components/shell';
 import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, RowLink, Screen, Segmented, Sheet, StatusBadge, type Tone } from '@/components/ui';
 import { ContactButtons, CallChip, WhatsAppLink } from '@/components/contact';
-import { DocumentRow, useDownload } from '@/components/files';
+import { DocumentSections, useDownload } from '@/components/files';
 import { RequestCard } from './Requests';
 
 export default function Customers() {
@@ -101,6 +101,8 @@ interface CustomerDetailData extends Customer {
   installments: Installment[];
   transactions: Transaction[];
   documents: DocumentItem[];
+  /** True for staff who may not open customer papers (only administrators and accounts may). */
+  documents_hidden?: boolean;
   activities: Activity[];
   financials: Financials;
   requests: CustomerRequest[];
@@ -138,7 +140,7 @@ export function CustomerDetail() {
               options={[
                 { value: 'overview', label: 'Overview' },
                 { value: 'payments', label: 'Payments' },
-                { value: 'documents', label: `Documents · ${c.documents.length}` },
+                ...(c.documents_hidden ? [] : [{ value: 'documents' as const, label: `Documents · ${c.documents.length}` }]),
                 { value: 'requests', label: `Requests · ${c.requests.length}` },
               ]}
             />
@@ -146,11 +148,7 @@ export function CustomerDetail() {
             {tab === 'payments' && <PaymentsTab c={c} />}
             {tab === 'documents' &&
               (c.documents.length ? (
-                <Card className="divide-y divide-stone-100">
-                  {c.documents.map((d) => (
-                    <DocumentRow key={d.id} d={d} />
-                  ))}
-                </Card>
+                <DocumentSections docs={c.documents} />
               ) : (
                 <Empty icon={UserRound} title="No documents yet" />
               ))}

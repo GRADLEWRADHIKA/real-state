@@ -213,7 +213,7 @@ function RegistryCard({ c, company }: { c: CustomerDetailData; company: string }
   const user = useUser();
   const [editing, setEditing] = useState(false);
   const status = c.registry_status ?? 'Not done';
-  const canEdit = canWrite(user) && (user.role === 'manager' || user.role === 'sales');
+  const canEdit = canWrite(user) && (user.role === 'admin' || user.role === 'manager' || user.role === 'sales');
   const property = [c.property_project, c.property_unit].filter(Boolean).join(' ') || null;
   return (
     <Card className="p-4">

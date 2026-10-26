@@ -95,9 +95,58 @@ test.describe('sales executive', () => {
   });
 });
 
-test('administrators get a read-only view', async ({ page }) => {
+test('administrators can act from the app and see the office screens', async ({ page }) => {
   await signIn(page, 'admin');
-  await expect(page.getByText('Administrators can view everything here.')).toBeVisible();
+  await expect(page.getByText('Administrators can view everything here.')).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Leads' }).click();
-  await expect(page.getByRole('button', { name: 'Add lead' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add lead' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'More' }).click();
+  for (const name of ['Finance', 'Expenses', 'Broker commissions', 'Staff']) await expect(page.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible();
+});
+
+test.describe('office screens', () => {
+  test('accounts records a payment on an installment and sees the receipt', async ({ page }) => {
+    await signIn(page, 'accounts');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Finance' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Finance' })).toBeVisible();
+    await page.getByRole('button', { name: /^Record payment for / }).first().click();
+    const sheet = page.getByRole('dialog', { name: /^Record payment/ });
+    await sheet.getByLabel('Amount (₹)').fill('5000');
+    await sheet.getByLabel('Method').selectOption('UPI');
+    await sheet.getByLabel('Reference').fill('UTR-E2E-1');
+    await sheet.getByRole('button', { name: 'Save payment' }).click();
+    const receipt = page.getByRole('dialog', { name: 'Payment recorded' });
+    await expect(receipt).toBeVisible();
+    await expect(receipt.getByText('₹5,000')).toBeVisible();
+    await expect(receipt.getByRole('button', { name: 'Download PDF' })).toBeVisible();
+    await expect(receipt.getByRole('link', { name: 'Send receipt' })).toHaveAttribute('href', /wa\.me/);
+    await receipt.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('tab', { name: "Today's payments" }).click();
+    await expect(page.getByText('Receipt ').first()).toBeVisible();
+  });
+
+  test('accounts adds an expense', async ({ page }) => {
+    await signIn(page, 'accounts');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'More' }).click();
+    await page.getByRole('link', { name: /^Expenses/ }).click();
+    await page.getByRole('button', { name: 'Add expense' }).first().click();
+    const sheet = page.getByRole('dialog', { name: 'Add expense' });
+    await sheet.getByLabel('Category').selectOption('Site');
+    await sheet.getByLabel('Description').fill('E2E site diesel');
+    await sheet.getByLabel('Amount (₹)').fill('1234');
+    await sheet.getByRole('button', { name: 'Save expense' }).click();
+    await expect(page.getByText('Expense added')).toBeVisible();
+    await expect(page.getByText('E2E site diesel')).toBeVisible();
+  });
+
+  test('manager marks attendance', async ({ page }) => {
+    await signIn(page, 'manager');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'More' }).click();
+    await page.getByRole('link', { name: /^Staff/ }).click();
+    await expect(page.getByRole('tab', { name: 'Salary' })).toHaveCount(0);
+    const select = page.getByLabel(/^Attendance for /).first();
+    await select.selectOption('Leave');
+    await expect(page.getByText(/: Leave$/)).toBeVisible();
+    await expect(select).toHaveValue('Leave');
+  });
 });

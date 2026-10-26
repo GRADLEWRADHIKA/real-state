@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from 'react-router';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Toaster } from 'sonner';
-import { CalendarCheck2, FileText, Home, Inbox, LayoutGrid, MapPinned, Menu, Receipt, Sun, UserRound, Users } from 'lucide-react';
+import { CalendarCheck2, FileText, Home, Inbox, IndianRupee, LayoutGrid, MapPinned, Menu, Receipt, Sun, UserRound, Users } from 'lucide-react';
 import type { User } from '@estateflow/shared';
 import { siteRoutes } from '@estateflow/site';
 import { clearCachedData, persistOptions, queryClient } from '@/lib/query';
@@ -26,6 +26,7 @@ import Tasks from '@/pages/staff/Tasks';
 import Customers, { CustomerDetail } from '@/pages/staff/Customers';
 import StaffRequests from '@/pages/staff/Requests';
 import { Properties, PropertyDetail } from '@/pages/staff/Properties';
+import { Brokers, Expenses, Finance, Staff, canBrokers, canFinance, canStaff } from '@/pages/staff/Office';
 
 /** Signed-in people can still open the website's property pages (shared links); this leads back. */
 const BACK_TO_APP = { to: '/', label: 'Back to the app' };
@@ -64,6 +65,7 @@ function StaffApp({ user }: { user: User }) {
     : [
         { to: '/today', label: 'Today', icon: Sun },
         { to: '/customers', label: 'Customers', icon: Users },
+        { to: '/finance', label: 'Finance', icon: IndianRupee },
         { to: '/requests', label: 'Requests', icon: Inbox },
         { to: '/more', label: 'More', icon: LayoutGrid, badge: unread },
       ];
@@ -91,6 +93,14 @@ function StaffApp({ user }: { user: User }) {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/more" element={<More />} />
+        {canFinance(user) && (
+          <>
+            <Route path="/finance" element={<Finance />} />
+            <Route path="/expenses" element={<Expenses />} />
+          </>
+        )}
+        {canBrokers(user) && <Route path="/brokers" element={<Brokers />} />}
+        {canStaff(user) && <Route path="/staff" element={<Staff />} />}
       </Route>
       <Route path="*" element={<Navigate to="/today" replace />} />
     </Routes>

@@ -139,5 +139,5 @@ export function useUser(): User {
   return u;
 }
 
-/** Administrators can look around in the app but make changes from the dashboard (enforced by the server). */
-export const canWrite = (u: User) => u.role !== 'admin';
+/** Staff roles (administrators included) can make changes from the app; the server enforces each action. */
+export const canWrite = (u: User) => u.role !== 'customer';

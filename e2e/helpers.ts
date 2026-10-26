@@ -5,6 +5,7 @@ export const USERS = {
   accounts: ['accounts@demo.com', 'Accounts@123'],
   customer: ['customer@demo.com', 'Customer@123'],
   admin: ['admin@demo.com', 'Admin@123'],
+  manager: ['manager@demo.com', 'Manager@123'],
 } as const;
 
 /**

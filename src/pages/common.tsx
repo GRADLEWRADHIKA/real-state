@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { BellOff, BellRing, Building2, CheckCheck, CloudUpload, Fingerprint, Inbox, KeyRound, ListChecks, LogOut, MonitorSmartphone, Server, Trash2, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { BellOff, BellRing, Building2, CalendarCheck2, HandCoins, IndianRupee, Wallet, CheckCheck, CloudUpload, Fingerprint, Inbox, KeyRound, ListChecks, LogOut, MonitorSmartphone, Server, Trash2, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { APP_VERSION, ROLE_LABEL, timeAgo, type NotificationItem, type User } from '@estateflow/shared';
 import { api, auth, errorMessage, getServerUrl } from '@/lib/api';
 import { useSession, useUser } from '@/lib/session';
@@ -14,6 +14,7 @@ import { useNotifications } from '@/components/shell';
 import { Avatar, Button, Card, Empty, Field, IconButton, Loadable, RowLink, Screen, Section, Sheet } from '@/components/ui';
 import { ServerSheet } from './auth';
 import { appLink } from '@/lib/links';
+import { canBrokers, canFinance, canStaff, canTargets } from './staff/Office';
 
 // ─── Notifications ─────────────────────────────────────────────────────────
 
@@ -104,6 +105,10 @@ export function More() {
       <Card className="divide-y divide-stone-100">
         {!accounts && <MenuRow to="/customers" icon={Users} label="Customers" detail="Bookings, payments and documents" />}
         {!accounts && <MenuRow to="/requests" icon={Inbox} label="Customer requests" detail="Visits, queries and complaints from the customer app" />}
+ {canFinance(user) && <MenuRow to="/finance" icon={IndianRupee} label="Finance" detail="Installments due, record payments, receipts" />}
+        {canFinance(user) && <MenuRow to="/expenses" icon={Wallet} label="Expenses" detail="Office and site spending" />}
+        {canBrokers(user) && <MenuRow to="/brokers" icon={HandCoins} label={canFinance(user) ? 'Broker commissions' : 'Brokers'} detail={canFinance(user) ? 'Commission due and paid' : 'Channel partners'} />}
+        {canStaff(user) && <MenuRow to="/staff" icon={CalendarCheck2} label="Staff" detail={[ 'Attendance', canFinance(user) && 'salary', canTargets(user) && 'targets'].filter(Boolean).join(', ')} />}
         <MenuRow to="/properties" icon={Building2} label="Properties" detail="Inventory with photos to share with buyers" />
         <MenuRow to="/tasks" icon={ListChecks} label="My tasks" />
         <MenuRow to="/notifications" icon={BellRing} label="Notifications" />

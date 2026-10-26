@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Download, FileText, ImageOff, Loader2 } from 'lucide-react';
+import { Download, FileText, ImageOff, Loader2, ScanLine } from 'lucide-react';
 import { DOCUMENT_SECTIONS, documentSection, fileSize, fmtDate, type DocumentItem } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { saveFile } from '@/lib/platform';
@@ -86,17 +86,18 @@ export function useFilePicker(accept: string, onPick: (f: File) => void, capture
 }
 
 /** A customer's documents grouped by section (KYC, booking, payments, land records, registry, other), with missing papers named. */
-export function DocumentSections({ docs }: { docs: (DocumentItem & { mine?: boolean })[] }) {
+export function DocumentSections({ docs, onUpload }: { docs: (DocumentItem & { mine?: boolean })[]; onUpload?: (section: (typeof DOCUMENT_SECTIONS)[number], missing: string[]) => void }) {
   return (
     <div className="space-y-3">
       {DOCUMENT_SECTIONS.map((section) => {
         const mine = docs.filter((d) => documentSection(d.doc_type).key === section.key);
         const have = new Set(mine.map((d) => d.doc_type));
         const missing = section.required.filter((t) => !have.has(t));
-        if (!mine.length && !missing.length) return null;
+        if (!onUpload && !mine.length && !missing.length) return null;
         return (
           <section key={section.key} aria-labelledby={`docs-${section.key}`} className="card overflow-hidden">
-            <div className="px-4 pt-3 pb-2">
+            <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2">
+              <div className="min-w-0">
               <h2 id={`docs-${section.key}`} className="text-[14px] font-bold text-brand-900">
                 {section.title} <span className="font-medium text-stone-400">· {section.hindi}</span>
               </h2>
@@ -104,6 +105,17 @@ export function DocumentSections({ docs }: { docs: (DocumentItem & { mine?: bool
                 {mine.length} {mine.length === 1 ? 'document' : 'documents'}
                 {missing.length > 0 && <span className="text-amber-700"> · Missing: {missing.join(', ')}</span>}
               </p>
+              </div>
+              {onUpload && (
+                <button
+                  type="button"
+                  aria-label={`Upload or scan to ${section.title}`}
+                  onClick={() => onUpload(section, missing)}
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-brand-200 px-3 text-[12.5px] font-semibold text-brand-800 active:bg-brand-50"
+                >
+                  <ScanLine className="size-4" /> Add
+                </button>
+              )}
             </div>
             {mine.length > 0 && (
               <div className="divide-y divide-stone-100 border-t border-stone-100">

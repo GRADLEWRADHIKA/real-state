@@ -32,6 +32,7 @@ import { BellButton } from '@/components/shell';
 import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, RowLink, Screen, Segmented, Sheet, StatusBadge, type Tone } from '@/components/ui';
 import { ContactButtons, CallChip, WhatsAppLink } from '@/components/contact';
 import { DocumentSections, useDownload } from '@/components/files';
+import { DocumentUploadSheet } from '@/components/scanner';
 import { RequestCard } from './Requests';
 
 export default function Customers() {
@@ -110,6 +111,33 @@ interface CustomerDetailData extends Customer {
 
 type Tab = 'overview' | 'payments' | 'documents' | 'requests';
 
+/** Admin and accounts (the only staff who see customer papers) upload or scan straight into a section. */
+function CustomerDocumentsTab({ c }: { c: CustomerDetailData }) {
+  const qc = useQueryClient();
+  const [target, setTarget] = useState<{ title: string; types: readonly string[]; type?: string } | null>(null);
+  return (
+    <>
+      <DocumentSections docs={c.documents} onUpload={(section, missing) => setTarget({ title: section.title, types: section.types, type: missing[0] })} />
+      {target && (
+        <DocumentUploadSheet
+          title={`Add to ${target.title}`}
+          types={target.types}
+          defaultType={target.type}
+          send={(form, onProgress) => {
+            form.append('entity_type', 'customer');
+            form.append('entity_id', String(c.id));
+            return api.upload('/documents', form, { onProgress });
+          }}
+          onDone={() => {
+            setTarget(null);
+            void qc.invalidateQueries({ queryKey: ['customers', c.id] });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 export function CustomerDetail() {
   const id = Number(useParams().id);
   const [params, setParams] = useSearchParams();
@@ -147,11 +175,7 @@ export function CustomerDetail() {
             {tab === 'overview' && <Overview c={c} />}
             {tab === 'payments' && <PaymentsTab c={c} />}
             {tab === 'documents' &&
-              (c.documents.length ? (
-                <DocumentSections docs={c.documents} />
-              ) : (
-                <Empty icon={UserRound} title="No documents yet" />
-              ))}
+              <CustomerDocumentsTab c={c} />}
             {tab === 'requests' &&
               (c.requests.length ? (
                 <div className="space-y-2">

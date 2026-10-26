@@ -4,14 +4,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 import { Check, FileText, FileUp, FolderOpen, Inbox, Mail, Plus, Receipt } from 'lucide-react';
-import { CONSTRUCTION_STAGES, CUSTOMER_REQUEST_TYPES, CUSTOMER_UPLOAD_TYPES, UPLOAD_ACCEPT, UPLOAD_MAX_BYTES, firstName, fmtDate, greeting, inr, inrShort, todayStr, type PortalData } from '@estateflow/shared';
+import { CONSTRUCTION_STAGES, CUSTOMER_REQUEST_TYPES, CUSTOMER_UPLOAD_TYPES, firstName, fmtDate, greeting, inr, inrShort, todayStr, type PortalData } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
-import { useOnline } from '@/lib/network';
 import { useUser } from '@/lib/session';
 import { BellButton } from '@/components/shell';
 import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, Screen, Section, Segmented, Sheet } from '@/components/ui';
 import { ContactButtons } from '@/components/contact';
-import { DocumentSections, useFilePicker } from '@/components/files';
+import { DocumentSections } from '@/components/files';
+import { DocumentUploadSheet } from '@/components/scanner';
 import { InstallmentList, RegistryBadge, TransactionList, daysLeftLabel } from './staff/Customers';
 import { RequestCard } from './staff/Requests';
 import { SwipeGallery } from '@/components/gallery';
@@ -235,11 +235,12 @@ export function CustomerPayments() {
 
 export function CustomerDocuments() {
   const q = usePortal();
+  const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
   return (
     <Screen title="Documents" actions={<BellButton />}>
       <Button block icon={FileUp} onClick={() => setUploading(true)}>
-        Upload a document
+        Upload or scan a document
       </Button>
       <Loadable q={q}>
         {(p) =>
@@ -250,61 +251,21 @@ export function CustomerDocuments() {
           )
         }
       </Loadable>
-      {uploading && <UploadSheet onClose={() => setUploading(false)} />}
+      {uploading && (
+        <DocumentUploadSheet
+          title="Upload or scan a document"
+          types={CUSTOMER_UPLOAD_TYPES}
+          send={async (form, onProgress) => {
+            await api.upload('/portal/documents', form, { onProgress });
+            toast.success('Your relationship manager has been told.');
+          }}
+          onDone={() => {
+            setUploading(false);
+            void qc.invalidateQueries({ queryKey: ['portal'] });
+          }}
+        />
+      )}
     </Screen>
-  );
-}
-
-function UploadSheet({ onClose }: { onClose: () => void }) {
-  const qc = useQueryClient();
-  const online = useOnline();
-  const [type, setType] = useState<(typeof CUSTOMER_UPLOAD_TYPES)[number]>('Aadhaar');
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const picker = useFilePicker(UPLOAD_ACCEPT, (f) => {
-    if (f.size > UPLOAD_MAX_BYTES) return toast.error(`That file is larger than ${UPLOAD_MAX_BYTES / 1024 / 1024} MB`);
-    setFile(f);
-  });
-  const upload = async () => {
-    if (!file) return toast.error('Choose a file first');
-    if (!online) return toast.error('Uploading needs a connection');
-    setProgress(0);
-    try {
-      const form = new FormData();
-      form.append('doc_type', type);
-      form.append('name', `${type} - ${file.name}`.slice(0, 160));
-      form.append('file', file);
-      await api.upload('/portal/documents', form, { onProgress: setProgress });
-      void qc.invalidateQueries({ queryKey: ['portal'] });
-      toast.success('Uploaded. Your relationship manager has been told.');
-      onClose();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setProgress(null);
-    }
-  };
-  return (
-    <Sheet open onClose={onClose} title="Upload a document">
-      <Field label="Document type">
-        {(id) => (
-          <select id={id} className="field" value={type} onChange={(e) => setType(e.target.value as typeof type)}>
-            {CUSTOMER_UPLOAD_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        )}
-      </Field>
-      {picker.input}
-      <button type="button" onClick={picker.open} className="flex w-full flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-stone-300 px-4 py-6 text-center active:bg-stone-50">
-        <FileUp className="size-6 text-brand-700" />
-        <span className="font-semibold">{file ? file.name : 'Choose a photo or PDF'}</span>
-        <span className="text-[12px] text-stone-500">PDF, image, Word or Excel, up to {UPLOAD_MAX_BYTES / 1024 / 1024} MB</span>
-      </button>
-      <Button block size="lg" loading={progress !== null} onClick={upload}>
-        {progress !== null ? `Uploading ${Math.round(progress * 100)}%` : 'Upload'}
-      </Button>
-    </Sheet>
   );
 }
 

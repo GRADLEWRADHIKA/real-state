@@ -15,6 +15,8 @@ interface SessionCtx {
   expiredReason: string | null;
   login: (email: string, password: string, remember: boolean) => Promise<User>;
   logout: (everywhere?: boolean) => Promise<void>;
+  /** Leaves the lock screen for the password sign-in; work saved offline is kept for the same person. */
+  signInWithPassword: () => Promise<void>;
   unlock: () => Promise<boolean>;
   setUser: (u: User) => void;
   /** Re-reads /api/meta; resolves true when this app version is too old for the server. */
@@ -32,8 +34,11 @@ async function fetchMeta(): Promise<ServerMeta | null> {
   }
 }
 
-/** `expired`: the server ended the session (work saved offline is kept for the same person). */
-export type SignOutReason = 'logout' | 'expired';
+/**
+ * `expired`: the server ended the session. `relogin`: the person left the lock screen to sign in with
+ * their password. Both keep work saved offline for the same person; only `logout` discards it.
+ */
+export type SignOutReason = 'logout' | 'expired' | 'relogin';
 
 export function SessionProvider({ children, onSignedOut }: { children: ReactNode; onSignedOut: (user: User | null, reason: SignOutReason) => Promise<void> | void }) {
   const [phase, setPhase] = useState<Phase>('booting');
@@ -111,6 +116,13 @@ export function SessionProvider({ children, onSignedOut }: { children: ReactNode
         await auth.logout();
         await kv.remove(USER_KEY);
         await onSignedOut(user, 'logout');
+        setUserState(null);
+        setPhase('signed-out');
+      },
+      async signInWithPassword() {
+        await auth.logout();
+        await kv.remove(USER_KEY);
+        await onSignedOut(user, 'relogin');
         setUserState(null);
         setPhase('signed-out');
       },

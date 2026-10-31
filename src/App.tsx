@@ -166,7 +166,8 @@ function Gate() {
 export default function App() {
   const onSignedOut = useCallback(async (user: User | null, reason: SignOutReason) => {
     await clearCachedData();
-    // Signing out on purpose discards unsynced work; an expired session keeps it for the same person.
+    // Signing out on purpose discards unsynced work; an expired session or a password sign-in from the
+    // lock screen keeps it for the same person.
     if (user && reason === 'logout') await kv.remove(queueKey(user.id));
   }, []);
   return (

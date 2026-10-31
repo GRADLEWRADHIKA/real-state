@@ -58,7 +58,7 @@ export function UpdateRequired() {
 }
 
 export function Locked() {
-  const { unlock, logout } = useSession();
+  const { unlock, signInWithPassword } = useSession();
   return (
     <BrandFrame>
       <img src={mark} alt="" className="mx-auto mb-6 size-20" />
@@ -67,7 +67,7 @@ export function Locked() {
       <Button variant="gold" size="lg" icon={Fingerprint} block className="mt-8" onClick={() => void unlock().then((ok) => !ok && toast.error('Not recognised. Try again.'))}>
         Unlock
       </Button>
-      <button type="button" className="mt-4 h-11 text-[14px] font-semibold text-white/70" onClick={() => void logout()}>
+      <button type="button" className="mt-4 h-11 text-[14px] font-semibold text-white/70" onClick={() => void signInWithPassword()}>
         Sign in with password instead
       </button>
     </BrandFrame>

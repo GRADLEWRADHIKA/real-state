@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { BellOff, BellRing, Building2, CalendarCheck2, HandCoins, IndianRupee, Wallet, CheckCheck, CloudUpload, Fingerprint, FolderLock, Inbox, KeyRound, ListChecks, LogOut, MonitorSmartphone, Server, Trash2, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { BellOff, BellRing, Building2, Gift, Star, CalendarCheck2, HandCoins, IndianRupee, Wallet, CheckCheck, CloudUpload, Fingerprint, FolderLock, Inbox, KeyRound, ListChecks, LogOut, MonitorSmartphone, Server, Trash2, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { APP_VERSION, ROLE_LABEL, timeAgo, type NotificationItem, type User } from '@estateflow/shared';
 import { api, auth, errorMessage, getServerUrl } from '@/lib/api';
 import { useSession, useUser } from '@/lib/session';
@@ -16,6 +16,7 @@ import { ServerSheet } from './auth';
 import { appLink } from '@/lib/links';
 import { canBrokers, canFinance, canStaff, canTargets } from './staff/Office';
 import { canPrivateDocs } from './staff/PrivateDocs';
+import { RateSheet } from './customer';
 
 // ─── Notifications ─────────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ export function Profile() {
   const user = useUser();
   const { logout, recheckServer } = useSession();
   const { pending, syncNow, discard } = useOffline();
-  const [sheet, setSheet] = useState<'edit' | 'password' | 'server' | 'signout' | null>(null);
+  const [sheet, setSheet] = useState<'edit' | 'password' | 'server' | 'signout' | 'rate' | null>(null);
   const [bio, setBio] = useState({ available: false, on: false });
   const [reminders, setReminders] = useState(false);
 
@@ -183,6 +184,21 @@ export function Profile() {
                 <IconButton icon={Trash2} label={`Discard ${p.label}`} onClick={() => void discard(p.id).then(() => toast('Discarded'))} />
               </div>
             ))}
+          </Card>
+        </Section>
+      )}
+
+      {user.role === 'customer' && (
+        <Section title="Share and rate">
+          <Card className="divide-y divide-stone-100">
+            <MenuRow to="/refer" icon={Gift} label="Refer a friend" detail="Your referrals and how they are going" />
+            <button type="button" onClick={() => setSheet('rate')} className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-stone-50">
+              <Star className="size-5 text-brand-700" />
+              <span className="flex-1">
+                <span className="block font-semibold">Rate us</span>
+                <span className="block text-[13px] text-stone-500">Tell us how we are doing</span>
+              </span>
+            </button>
           </Card>
         </Section>
       )}
@@ -249,6 +265,7 @@ export function Profile() {
 
       {sheet === 'edit' && <EditProfileSheet onClose={() => setSheet(null)} />}
       {sheet === 'password' && <PasswordSheet onClose={() => setSheet(null)} />}
+      {sheet === 'rate' && <RateSheet kind="general" onClose={() => setSheet(null)} />}
       {sheet === 'server' && <ServerSheet onClose={() => setSheet(null)} onSaved={recheckServer} />}
       {sheet === 'signout' && (
         <Sheet open onClose={() => setSheet(null)} title="Sign out">

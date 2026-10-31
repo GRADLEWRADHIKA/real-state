@@ -3,8 +3,8 @@ import { Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { BellRing, CalendarCheck, Check, Clock, IndianRupee, LogIn, LogOut, MapPin, PhoneCall, Sun, Target } from 'lucide-react';
-import { firstName, fmtDateLong, fmtDateShort, fmtTime, greeting, inr, inrShort, relativeDay, type AttendanceRecord, type Followup, type SiteVisit, type Task, type TargetRow } from '@estateflow/shared';
+import { BellRing, CalendarCheck, Check, Clock, IndianRupee, LogIn, LogOut, MapPin, PhoneCall, PhoneForwarded, Sun, Target } from 'lucide-react';
+import { firstName, fmtDateLong, fmtDateShort, fmtTime, greeting, inr, inrShort, relativeDay, STUCK_LEAD_DAYS, type AttendanceRecord, type Followup, type Lead, type SiteVisit, type Task, type TargetRow } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { kv } from '@/lib/platform';
 import { currentPosition } from '@/lib/device';
@@ -157,6 +157,58 @@ function TargetCard({ userId }: { userId: number }) {
   );
 }
 
+export interface LeadInsights {
+  days: number;
+  open: number;
+  stuck: Lead[];
+  hot: Lead[];
+  byAgent: { agent_id: number | null; agent_name: string; stuck: number }[];
+}
+
+/** Open leads nobody has contacted for STUCK_LEAD_DAYS days (scoped to the executive by the server). */
+export const useLeadInsights = () => useQuery({ queryKey: ['leads', 'insights'], queryFn: () => api.get<LeadInsights>('/leads/insights', { days: STUCK_LEAD_DAYS }) });
+
+/** The user's own stuck leads, longest idle first. */
+export const ownStuck = (d: LeadInsights | undefined, userId: number) => (d?.stuck ?? []).filter((l) => l.assigned_to === userId);
+
+export const idleLabel = (days?: number) => (days === undefined ? '' : days === 1 ? '1 day idle' : `${days} days idle`);
+
+/** Up to three of the user's leads that have gone quiet, with a call button each. */
+function NeedsCallCard({ userId }: { userId: number }) {
+  const q = useLeadInsights();
+  const stuck = ownStuck(q.data, userId);
+  if (!stuck.length) return null;
+  return (
+    <Section
+      title={`Needs a call · ${stuck.length}`}
+      action={
+        <Link to="/leads?filter=stuck" className="text-[13px] font-semibold text-brand-800">
+          See all
+        </Link>
+      }
+    >
+      <Card className="divide-y divide-stone-100">
+        <div className="flex items-center gap-2 px-4 pt-3 pb-2 text-[13px] text-stone-500">
+          <PhoneForwarded className="size-4 shrink-0 text-amber-600" />
+          No contact for {STUCK_LEAD_DAYS}+ days. A quick call keeps them warm.
+        </div>
+        {stuck.slice(0, 3).map((l) => (
+          <div key={l.id} className="flex items-center gap-3 px-4 py-3">
+            <Link to={`/leads/${l.id}`} className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{l.name}</p>
+              <p className="text-[13px]">
+                <span className="font-semibold text-amber-700">{idleLabel(l.idle_days)}</span>
+                <span className="text-stone-500"> · {l.status}</span>
+              </p>
+            </Link>
+            <CallChip phone={l.phone} leadId={l.id} name={l.name} />
+          </div>
+        ))}
+      </Card>
+    </Section>
+  );
+}
+
 function VisitCard({ v }: { v: TodayData['visits'][number] }) {
   const state = v.status === 'Completed' ? 'Done' : v.checked_in_at ? 'On site' : null;
   return (
@@ -258,6 +310,8 @@ export default function Today() {
               </div>
 
               {nothing && <Empty icon={Sun} title="A clear day" body="Nothing is due today. New follow-ups, visits and tasks will show up here." />}
+
+              {editable && !isAccounts && <NeedsCallCard userId={user.id} />}
 
               {d.visits.length > 0 && (
                 <Section title="Site visits" action={<Link to="/site-visits" className="text-[13px] font-semibold text-brand-800">All visits</Link>}>

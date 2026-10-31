@@ -18,6 +18,8 @@ const AFFECTS: Record<QueueItem['kind'], string[]> = {
   'check-out': ['site-visits', 'leads', 'today'],
   'lead-status': ['leads'],
   'lead-create': ['leads'],
+  // Not 'site-visits': the visit screen keeps the rating it just showed (GET /site-visits/:id does not return it).
+  'visit-feedback': ['leads'],
 };
 
 export type QueuedSpec = Pick<QueueItem, 'kind' | 'method' | 'path' | 'body' | 'label'>;

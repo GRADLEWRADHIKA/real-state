@@ -4,11 +4,12 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Search, Users, X } from 'lucide-react';
 import { LEAD_PRIORITIES, LEAD_SOURCES, timeAgo, type Lead, type Paginated } from '@estateflow/shared';
+import { idleLabel, type LeadInsights } from './Today';
 import { ApiError, api, errorMessage } from '@/lib/api';
 import { canWrite, useUser } from '@/lib/session';
 import { useOffline } from '@/offline/OfflineProvider';
 import { BellButton } from '@/components/shell';
-import { Avatar, Badge, Button, Card, Empty, Field, IconButton, Loadable, Screen, Segmented, Sheet, StatusBadge } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Empty, Field, IconButton, Loadable, ScoreBadge, Screen, Segmented, Sheet, StatusBadge } from '@/components/ui';
 import { CallChip } from '@/components/contact';
 
 const FILTERS = [
@@ -21,6 +22,7 @@ const FILTERS = [
   { value: 'Site Visit', label: 'Site visit' },
   { value: 'Negotiation', label: 'Negotiation' },
   { value: 'Hot', label: 'Hot' },
+  { value: 'stuck', label: 'Stuck' },
 ] as const;
 type Filter = (typeof FILTERS)[number]['value'];
 
@@ -31,6 +33,14 @@ function queryFor(filter: Filter, q: string) {
   else if (filter === 'Hot') out.priority = 'Hot';
   else if (filter !== 'all') out.status = filter;
   return out;
+}
+
+/** "Stuck" comes from the lead-ageing insights (one list, longest idle first), searched on the phone. */
+async function stuckPage(q: string): Promise<Paginated<Lead>> {
+  const d = await api.get<LeadInsights>('/leads/insights');
+  const needle = q.toLowerCase();
+  const data = needle ? d.stuck.filter((l) => [l.name, l.phone, l.code].some((v) => v?.toLowerCase().includes(needle))) : d.stuck;
+  return { data, meta: { page: 1, limit: data.length, total: data.length, pages: 1, hasMore: false, nextCursor: null } as Paginated<Lead>['meta'] };
 }
 
 export default function Leads() {
@@ -49,7 +59,7 @@ export default function Leads() {
 
   const query = useInfiniteQuery({
     queryKey: ['leads', 'list', filter, q],
-    queryFn: ({ pageParam }) => api.get<Paginated<Lead>>('/leads', { ...queryFor(filter, q), ...(pageParam ? { cursor: pageParam } : {}) }),
+    queryFn: ({ pageParam }) => (filter === 'stuck' ? stuckPage(q) : api.get<Paginated<Lead>>('/leads', { ...queryFor(filter, q), ...(pageParam ? { cursor: pageParam } : {}) })),
     initialPageParam: '',
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
   });
@@ -66,7 +76,7 @@ export default function Leads() {
   return (
     <Screen
       title="Leads"
-      subtitle={total !== undefined ? `${total} ${user.role === 'sales' ? 'assigned to you' : 'in total'}` : undefined}
+      subtitle={total !== undefined ? (filter === 'stuck' ? `${total} with no contact for a week or more` : `${total} ${user.role === 'sales' ? 'assigned to you' : 'in total'}`) : undefined}
       actions={
         <>
           {canWrite(user) && <IconButton icon={Plus} label="Add lead" onClick={() => setParam('new', '1')} />}
@@ -91,7 +101,7 @@ export default function Leads() {
             return (
               <Empty
                 icon={Users}
-                title={q || filter !== 'all' ? 'No matching leads' : 'No leads yet'}
+                title={filter === 'stuck' && !q ? 'No stuck leads' : q || filter !== 'all' ? 'No matching leads' : 'No leads yet'}
                 body={q || filter !== 'all' ? 'Try a different search or filter.' : 'Leads assigned to you will appear here.'}
                 action={canWrite(user) && <Button icon={Plus} onClick={() => setParam('new', '1')}>Add a lead</Button>}
               />
@@ -107,12 +117,15 @@ export default function Leads() {
                         <div className="flex items-center gap-1.5">
                           <p className="truncate font-semibold">{l.name}</p>
                           {l.priority === 'Hot' && <Badge tone="red">Hot</Badge>}
+                          <ScoreBadge score={l.score} className="ml-auto shrink-0" />
                         </div>
                         <div className="flex items-center gap-1.5 text-[13px] text-stone-500">
                           <StatusBadge status={l.status} />
                           <span className="truncate">{l.property_project || l.requirement || l.source}</span>
                         </div>
-                        <p className="text-[12px] text-stone-400">{l.last_contact ? `Contacted ${timeAgo(l.last_contact)}` : 'Not contacted yet'}</p>
+                        <p className="text-[12px] text-stone-400">
+                          {l.stuck ? <span className="font-semibold text-amber-700">{idleLabel(l.idle_days)}</span> : l.last_contact ? `Contacted ${timeAgo(l.last_contact)}` : 'Not contacted yet'}
+                        </p>
                       </div>
                     </Link>
                     <CallChip phone={l.phone} leadId={canWrite(user) ? l.id : undefined} name={l.name} />

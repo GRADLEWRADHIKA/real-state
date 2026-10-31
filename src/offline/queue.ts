@@ -12,7 +12,7 @@
  *   dropped and reported through `onDrop` so the user sees what was not saved.
  */
 
-export type QueueKind = 'log-contact' | 'note' | 'followup-complete' | 'check-in' | 'check-out' | 'lead-status' | 'lead-create';
+export type QueueKind = 'log-contact' | 'note' | 'followup-complete' | 'check-in' | 'check-out' | 'lead-status' | 'lead-create' | 'visit-feedback';
 
 export interface QueueItem {
   id: string;

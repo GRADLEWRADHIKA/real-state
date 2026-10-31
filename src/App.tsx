@@ -15,7 +15,7 @@ import { TabShell, useNotifications, type Tab } from '@/components/shell';
 import { Booting, Locked, Login, UpdateRequired } from '@/pages/auth';
 import { More, Notifications, Profile } from '@/pages/common';
 import { appLink } from '@/lib/links';
-import { CustomerDocuments, CustomerHome, CustomerPayments, CustomerRequests } from '@/pages/customer';
+import { CustomerDocuments, CustomerHome, CustomerPayments, CustomerReferrals, CustomerRequests } from '@/pages/customer';
 import Today, { useToday } from '@/pages/staff/Today';
 import Leads from '@/pages/staff/Leads';
 import LeadDetail from '@/pages/staff/LeadDetail';
@@ -127,6 +127,7 @@ function CustomerApp({ user }: { user: User }) {
         <Route path="/payments" element={<CustomerPayments />} />
         <Route path="/documents" element={<CustomerDocuments />} />
         <Route path="/requests" element={<CustomerRequests />} />
+        <Route path="/refer" element={<CustomerReferrals />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profile" element={<Profile />} />
       </Route>

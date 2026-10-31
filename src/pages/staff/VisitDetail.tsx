@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Camera, CalendarClock, LogIn, LogOut, MapPin, XCircle } from 'lucide-react';
+import { Camera, CalendarClock, LogIn, LogOut, MapPin, Star, XCircle } from 'lucide-react';
 import { UPLOAD_ALLOWED, VISIT_OUTCOMES, fmtDateTime, fmtTime, humanDate, todayStr, type DocumentItem, type SiteVisit } from '@estateflow/shared';
 import { api, errorMessage } from '@/lib/api';
 import { isNative } from '@/lib/platform';
@@ -10,11 +10,17 @@ import { useOnline } from '@/lib/network';
 import { currentPosition, takePhoto } from '@/lib/device';
 import { canWrite, useUser } from '@/lib/session';
 import { useOffline } from '@/offline/OfflineProvider';
-import { Badge, Button, Card, Field, KeyValue, Loadable, RowLink, Screen, Section, Sheet, StatusBadge, ViewOnlyNote } from '@/components/ui';
+import { Badge, Button, Card, Field, KeyValue, Loadable, RowLink, Screen, Section, Sheet, StarRating, StatusBadge, ViewOnlyNote } from '@/components/ui';
 import { ContactButtons, MapsLink } from '@/components/contact';
 import { AuthImage, useFilePicker } from '@/components/files';
 
-type VisitDetailData = SiteVisit & { property_city?: string | null; photo_documents: DocumentItem[] };
+type VisitDetailData = SiteVisit & {
+  property_city?: string | null;
+  photo_documents: DocumentItem[];
+  /** The visitor's rating, once recorded (kept on the phone after rating; the server keeps one per visit). */
+  visitor_rating?: number | null;
+  visitor_comment?: string | null;
+};
 
 export default function VisitDetail() {
   const id = Number(useParams().id);
@@ -26,7 +32,7 @@ export default function VisitDetail() {
   const key = ['site-visits', id];
   const q = useQuery({ queryKey: key, queryFn: () => api.get<VisitDetailData>(`/site-visits/${id}`), enabled: Number.isFinite(id) });
   const [busy, setBusy] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<'checkout' | 'reschedule' | 'cancel' | null>(null);
+  const [sheet, setSheet] = useState<'checkout' | 'reschedule' | 'cancel' | 'rating' | null>(null);
 
   /** Shows the change at once, whether it reached the server or is waiting offline. */
   const patchLocal = (patch: Partial<VisitDetailData>) => qc.setQueryData<VisitDetailData>(key, (v) => (v ? { ...v, ...patch } : v));
@@ -130,6 +136,21 @@ export default function VisitDetail() {
                 </>
               )}
 
+              {editable && v.status === 'Completed' && (
+                <Card className="flex items-center gap-3 p-4">
+                  <Star className={v.visitor_rating ? 'size-5 shrink-0 fill-gold-400 text-gold-500' : 'size-5 shrink-0 text-brand-700'} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">Visitor rating</p>
+                    <p className="text-[13px] text-stone-500">
+                      {v.visitor_rating ? `Rated ${v.visitor_rating}/5${v.visitor_comment ? ` · ${v.visitor_comment}` : ''}` : `Ask ${v.lead_name} how the visit went.`}
+                    </p>
+                  </div>
+                  <Button size="sm" variant={v.visitor_rating ? 'secondary' : 'primary'} onClick={() => setSheet('rating')}>
+                    {v.visitor_rating ? 'Change' : 'Rate visit'}
+                  </Button>
+                </Card>
+              )}
+
               <Card className="divide-y divide-stone-100 px-4">
                 <KeyValue label="When">{humanDate(v.visit_date, v.visit_time)}</KeyValue>
                 {v.agent_name && <KeyValue label="Agent">{v.agent_name}</KeyValue>}
@@ -172,6 +193,7 @@ export default function VisitDetail() {
               {sheet === 'checkout' && <CheckOutSheet v={v} onClose={() => setSheet(null)} onDone={patchLocal} />}
               {sheet === 'reschedule' && <RescheduleVisitSheet v={v} onClose={() => setSheet(null)} />}
               {sheet === 'cancel' && <CancelVisitSheet v={v} onClose={() => setSheet(null)} />}
+              {sheet === 'rating' && <VisitRatingSheet v={v} onClose={() => setSheet(null)} onDone={patchLocal} />}
             </>
           );
         }}
@@ -221,6 +243,41 @@ function CheckOutSheet({ v, onClose, onDone }: { v: VisitDetailData; onClose: ()
       </Field>
       <Button block size="lg" onClick={save} loading={busy}>
         Check out
+      </Button>
+    </Sheet>
+  );
+}
+
+/** The visitor rates the visit 1-5 on the executive's phone; works offline like check-out. */
+function VisitRatingSheet({ v, onClose, onDone }: { v: VisitDetailData; onClose: () => void; onDone: (p: Partial<VisitDetailData>) => void }) {
+  const { submit } = useOffline();
+  const [rating, setRating] = useState(v.visitor_rating ?? 0);
+  const [comment, setComment] = useState(v.visitor_comment ?? '');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!rating) return toast.error('Tap a star to rate the visit');
+    setBusy(true);
+    try {
+      const body = { site_visit_id: v.id, rating, comment: comment.trim() || null };
+      const r = await submit({ kind: 'visit-feedback', method: 'POST', path: '/feedback/site-visit', body, label: `Visit rating from ${v.lead_name}` });
+      onDone({ visitor_rating: rating, visitor_comment: body.comment });
+      if (r.state === 'sent') toast.success('Thanks! Rating saved');
+      onClose();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet open onClose={onClose} title="Visitor rating">
+      <p className="text-[14px] text-stone-600">Hand the phone to {v.lead_name}: how was the site visit?</p>
+      <StarRating value={rating} onChange={setRating} label="Visit rating" />
+      <Field label="Comment" hint="Optional">
+        {(id) => <textarea id={id} rows={3} className="field" placeholder="What did they like, what could be better?" value={comment} onChange={(e) => setComment(e.target.value)} />}
+      </Field>
+      <Button block size="lg" onClick={save} loading={busy}>
+        Save rating
       </Button>
     </Sheet>
   );

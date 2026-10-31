@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router';
-import { BedDouble, MapPin, Maximize2, Search } from 'lucide-react';
+import { BedDouble, Heart, MapPin, Maximize2, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { useState, type FormEvent } from 'react';
 import { media, srcSet, type Img, type Property } from '../lib/api';
 import { BUDGETS, TYPES, inrShort } from '../lib/format';
+import { useShortlist } from '../lib/shortlist';
 
 /** Responsive image (400/900/1600 widths) inside a fixed-ratio box so nothing shifts while it loads. */
 export function Picture({ img, alt, sizes, ratio = '4 / 3', eager, className }: { img: Img | null; alt?: string; sizes: string; ratio?: string; eager?: boolean; className?: string }) {
@@ -30,6 +31,28 @@ const STATUS_STYLE: Record<string, string> = {
 };
 export const StatusPill = ({ status }: { status: string }) => <span className={clsx('rounded-full px-2.5 py-1 text-xs font-bold', STATUS_STYLE[status] ?? 'bg-stone')}>{status}</span>;
 
+/** Heart toggle that adds a property to (or takes it off) the visitor's on-device shortlist. */
+export function SaveButton({ slug, withText, className }: { slug: string; withText?: boolean; className?: string }) {
+  const { has, toggle } = useShortlist();
+  const saved = has(slug);
+  return (
+    <button
+      type="button"
+      aria-pressed={saved}
+      aria-label="Save to shortlist"
+      title={saved ? 'Saved to your shortlist' : 'Save to shortlist'}
+      onClick={() => toggle(slug)}
+      className={clsx(
+        withText ? 'site-btn site-btn-ghost !py-2 text-forest' : 'grid h-10 w-10 place-items-center rounded-full bg-white/90 text-forest shadow backdrop-blur transition hover:bg-white',
+        className,
+      )}
+    >
+      <Heart size={withText ? 16 : 19} aria-hidden fill={saved ? 'currentColor' : 'none'} className={clsx(saved && 'text-[#b4463c]')} />
+      {withText && (saved ? 'Saved' : 'Save')}
+    </button>
+  );
+}
+
 export function PropertyCard({ p }: { p: Property }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,.06),0_8px_24px_-12px_rgba(6,36,25,.25)] transition hover:-translate-y-0.5">
@@ -38,6 +61,7 @@ export function PropertyCard({ p }: { p: Property }) {
         <div className="absolute left-3 top-3">
           <StatusPill status={p.status} />
         </div>
+        <SaveButton slug={p.slug} className="absolute right-3 top-3 z-10" />
         {p.cover?.is_ai_generated && <ImpressionTag className="absolute bottom-3 right-3" />}
       </div>
       <div className="flex flex-1 flex-col p-5">

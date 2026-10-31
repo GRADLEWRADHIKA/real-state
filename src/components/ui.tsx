@@ -1,8 +1,8 @@
 import { useEffect, useId, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import clsx from 'clsx';
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, RefreshCw, X, type LucideIcon } from 'lucide-react';
-import { initials } from '@estateflow/shared';
+import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, RefreshCw, Star, X, type LucideIcon } from 'lucide-react';
+import { heatBand, initials } from '@estateflow/shared';
 import { errorMessage, isNetworkError } from '@/lib/api';
 
 // ─── Layout ────────────────────────────────────────────────────────────────
@@ -244,6 +244,45 @@ const STATUS_TONES: Record<string, Tone> = {
   Failed: 'red',
 };
 export const StatusBadge = ({ status }: { status: string }) => <Badge tone={STATUS_TONES[status] ?? 'gray'}>{status}</Badge>;
+
+/** Lead score 0-100 with its band (Hot / Warm / Cold), from the shared scoring rules. */
+export function ScoreBadge({ score, className }: { score?: number | null; className?: string }) {
+  if (score === undefined || score === null) return null;
+  const band = heatBand(score);
+  return (
+    <Badge tone={STATUS_TONES[band]} className={clsx('num gap-1', className)}>
+      <span aria-label={`Score ${score}`}>{score}</span> {band}
+    </Badge>
+  );
+}
+
+const STAR_WORDS = ['Poor', 'Below average', 'Okay', 'Good', 'Excellent'];
+
+/** 1-5 stars with big tap targets (a radio group, so it works with a screen reader too). */
+export function StarRating({ value, onChange, label = 'Rating' }: { value: number; onChange: (v: number) => void; label?: string }) {
+  return (
+    <div className="space-y-1">
+      <div role="radiogroup" aria-label={label} className="flex justify-between gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            onClick={() => onChange(n)}
+            className="grid size-14 place-items-center rounded-2xl active:bg-gold-50"
+          >
+            <Star className={clsx('size-10 transition-colors', n <= value ? 'fill-gold-400 text-gold-500' : 'text-stone-300')} strokeWidth={1.5} />
+          </button>
+        ))}
+      </div>
+      <p className="text-center text-[13px] font-semibold text-stone-600" aria-live="polite">
+        {value ? STAR_WORDS[value - 1] : 'Tap a star'}
+      </p>
+    </div>
+  );
+}
 
 // ─── Bottom sheet ──────────────────────────────────────────────────────────
 

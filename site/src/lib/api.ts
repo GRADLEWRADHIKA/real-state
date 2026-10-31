@@ -44,6 +44,8 @@ export interface Property {
   city: string;
   unit_number: string;
   tower?: string | null;
+  block?: string | null;
+  rate_per_sqft?: number | null;
   floor?: number | null;
   bedrooms?: number | null;
   bathrooms?: number | null;

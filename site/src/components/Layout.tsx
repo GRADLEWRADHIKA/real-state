@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import { Menu, MessageCircle, Phone, Smartphone, X } from 'lucide-react';
+import { Heart, Menu, MessageCircle, Phone, Smartphone, X } from 'lucide-react';
 import clsx from 'clsx';
 import logo from '../assets/starwiz-logo-512.png';
 import mark from '../assets/starwiz-mark.png';
 import { site } from '../lib/api';
 import { telHref, waHref } from '../lib/format';
 import { useCompany } from '../lib/hooks';
+import { useShortlist } from '../lib/shortlist';
 
 /** The sign-in (or, when signed in, back-to-work) link the host shows in the header and footer. */
 export interface AccountLink {
@@ -20,6 +21,24 @@ const NAV = [
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
 ];
+
+/** Header link to the visitor's on-device shortlist, with the number saved. */
+function ShortlistLink({ compact }: { compact?: boolean }) {
+  const { slugs } = useShortlist();
+  const label = `Shortlist (${slugs.length})`;
+  // Shown once something is saved, so the header stays as it was for visitors who never use it.
+  if (!slugs.length) return null;
+  return compact ? (
+    <NavLink to="/homes/shortlist" aria-label={label} className="ml-auto flex items-center gap-1.5 rounded-lg p-2 text-[15px] font-semibold md:hidden">
+      <Heart size={19} aria-hidden fill="currentColor" className="text-brass-light" /> {slugs.length}
+    </NavLink>
+  ) : (
+    <NavLink to="/homes/shortlist" className={({ isActive }) => clsx('inline-flex items-center gap-1.5 transition hover:text-brass-light', isActive && 'text-brass-light')}>
+      <Heart size={16} aria-hidden fill="currentColor" className="text-brass-light" />
+      {label}
+    </NavLink>
+  );
+}
 
 function Header() {
   const c = useCompany();
@@ -40,6 +59,7 @@ function Header() {
               {n.label}
             </NavLink>
           ))}
+          <ShortlistLink />
           <Link to={account.to} className="text-white/70 hover:text-white">
             {account.label}
           </Link>
@@ -49,7 +69,8 @@ function Header() {
             </a>
           )}
         </nav>
-        <button type="button" className="ml-auto rounded-lg p-2 md:hidden" aria-expanded={open} aria-controls="mobile-nav" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen((o) => !o)}>
+        <ShortlistLink compact />
+        <button type="button" className="ml-auto rounded-lg p-2 md:hidden [a+&]:-ml-4" aria-expanded={open} aria-controls="mobile-nav" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen((o) => !o)}>
           {open ? <X /> : <Menu />}
         </button>
       </div>

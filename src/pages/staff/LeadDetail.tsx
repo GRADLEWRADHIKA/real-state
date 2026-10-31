@@ -7,7 +7,7 @@ import { LEAD_PIPELINE_ORDER, LEAD_STATUSES, fmtDateTime, humanDate, inr, timeAg
 import { api, errorMessage } from '@/lib/api';
 import { canWrite, useUser } from '@/lib/session';
 import { useOffline } from '@/offline/OfflineProvider';
-import { Avatar, Badge, Button, Card, Field, KeyValue, Loadable, RowLink, Screen, Section, Sheet, StatusBadge, ViewOnlyNote } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Field, KeyValue, Loadable, RowLink, ScoreBadge, Screen, Section, Sheet, StatusBadge, ViewOnlyNote } from '@/components/ui';
 import { ContactButtons, LogContactSheet } from '@/components/contact';
 import { FollowupRow, NewFollowupSheet } from '@/components/followup';
 import { ScheduleVisitSheet } from '@/components/visit';
@@ -101,6 +101,15 @@ export default function LeadDetail() {
               )}
 
               <Card className="divide-y divide-stone-100 px-4">
+                {l.score !== undefined && (
+                  <KeyValue label="Score">
+                    <span className="flex flex-col items-end gap-0.5">
+                      <ScoreBadge score={l.score} />
+                      {l.score_reason && <span className={l.stuck ? 'text-[13px] font-semibold text-amber-700' : 'text-[13px] font-normal text-stone-500'}>{l.score_reason}</span>}
+                    </span>
+                  </KeyValue>
+                )}
+                {l.referred_by_name && <KeyValue label="Referral">Referred by {l.referred_by_name}</KeyValue>}
                 {l.budget ? <KeyValue label="Budget">{inr(l.budget)}</KeyValue> : null}
                 {l.requirement && <KeyValue label="Looking for">{l.requirement}</KeyValue>}
                 {(l.property_project || l.property_name) && (

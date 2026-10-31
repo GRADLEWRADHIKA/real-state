@@ -3,12 +3,12 @@ import { Link, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { Check, FileText, FileUp, FolderOpen, Inbox, Mail, Plus, Receipt } from 'lucide-react';
-import { CONSTRUCTION_STAGES, CUSTOMER_REQUEST_TYPES, CUSTOMER_UPLOAD_TYPES, firstName, fmtDate, greeting, inr, inrShort, todayStr, type PortalData } from '@estateflow/shared';
-import { api, errorMessage } from '@/lib/api';
+import { Check, FileText, FileUp, FolderOpen, Gift, Inbox, KeyRound, Mail, Plus, Receipt, Star, UserPlus } from 'lucide-react';
+import { CONSTRUCTION_STAGES, CUSTOMER_REQUEST_TYPES, CUSTOMER_UPLOAD_TYPES, firstName, fmtDate, greeting, inr, inrShort, timeAgo, todayStr, type FeedbackItem, type PortalData, type Referral } from '@estateflow/shared';
+import { ApiError, api, errorMessage } from '@/lib/api';
 import { useUser } from '@/lib/session';
 import { BellButton } from '@/components/shell';
-import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, Screen, Section, Segmented, Sheet } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Empty, Field, KeyValue, Loadable, Screen, Section, Segmented, Sheet, StarRating, StatusBadge } from '@/components/ui';
 import { ContactButtons } from '@/components/contact';
 import { DocumentSections } from '@/components/files';
 import { DocumentUploadSheet } from '@/components/scanner';
@@ -59,6 +59,193 @@ function RegistryStatusCard({ c }: { c: PortalData['customer'] }) {
   );
 }
 
+// ─── Feedback and referrals ────────────────────────────────────────────────
+
+type PortalFeedback = Pick<FeedbackItem, 'id' | 'kind' | 'rating' | 'comment' | 'created_at'>;
+export const usePortalFeedback = () => useQuery({ queryKey: ['portal', 'feedback'], queryFn: () => api.get<{ data: PortalFeedback[] }>('/portal/feedback') });
+const usePortalReferrals = () => useQuery({ queryKey: ['portal', 'referrals'], queryFn: () => api.get<{ data: Referral[] }>('/portal/referrals') });
+
+/** Possession can be rated once the home is ready or handed over. */
+const POSSESSION_STAGES = ['Ready for possession', 'Handed over'];
+
+/** Server messages for a field come as "phone: ..."; the person only needs the sentence. */
+const plainMessage = (e: unknown) => errorMessage(e).replace(/^[a-z_]+: /, '');
+
+/** 1-5 stars and a comment: the service in general (any time) or possession (once). */
+export function RateSheet({ kind, onClose }: { kind: 'general' | 'possession'; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    if (!rating) return setError('Tap a star to give your rating.');
+    setError(null);
+    setBusy(true);
+    try {
+      await api.post('/portal/feedback', { kind, rating, comment: comment.trim() || null });
+      void qc.invalidateQueries({ queryKey: ['portal', 'feedback'] });
+      toast.success('Thank you for your feedback!');
+      onClose();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) void qc.invalidateQueries({ queryKey: ['portal', 'feedback'] });
+      setError(plainMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet open onClose={onClose} title={kind === 'possession' ? 'Rate your possession' : 'Rate us'}>
+      <p className="text-[14px] text-stone-600">{kind === 'possession' ? 'How was getting the keys to your new home?' : 'How happy are you with our service so far?'}</p>
+      {error && (
+        <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {error}
+        </p>
+      )}
+      <StarRating value={rating} onChange={setRating} label="Your rating" />
+      <Field label="Comment" hint="Optional. Your relationship manager and the management read every comment.">
+        {(id) => <textarea id={id} rows={3} className="field" value={comment} onChange={(e) => setComment(e.target.value)} />}
+      </Field>
+      <Button block size="lg" onClick={save} loading={busy}>
+        Send rating
+      </Button>
+    </Sheet>
+  );
+}
+
+function ReferSheet({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: '', phone: '', note: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
+  const save = async () => {
+    setError(null);
+    if (form.name.trim().length < 2) return setError('Enter your friend’s name.');
+    if (!/^\+?[0-9 ()-]{8,16}$/.test(form.phone.trim())) return setError('Enter a valid phone number.');
+    setBusy(true);
+    try {
+      const r = await api.post<Referral>('/portal/referrals', { name: form.name.trim(), phone: form.phone.trim(), note: form.note.trim() || null });
+      qc.setQueryData<{ data: Referral[] }>(['portal', 'referrals'], (d) => (d ? { data: [r, ...d.data.filter((x) => x.id !== r.id)] } : d));
+      void qc.invalidateQueries({ queryKey: ['portal', 'referrals'] });
+      toast.success(`Thank you! We will call ${r.name} soon.`);
+      onClose();
+    } catch (e) {
+      setError(plainMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet open onClose={onClose} title="Refer a friend">
+      <p className="text-[14px] text-stone-600">Know someone looking for a home? Your relationship manager will call them and look after them as they did for you.</p>
+      {error && (
+        <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {error}
+        </p>
+      )}
+      <Field label="Friend’s name">{(id) => <input id={id} className="field" autoComplete="off" value={form.name} onChange={set('name')} />}</Field>
+      <Field label="Friend’s phone">{(id) => <input id={id} type="tel" inputMode="tel" className="field" value={form.phone} onChange={set('phone')} />}</Field>
+      <Field label="Note" hint="Optional. What they are looking for, a good time to call.">
+        {(id) => <input id={id} className="field" placeholder="Wants a plot, call after 6 PM" value={form.note} onChange={set('note')} />}
+      </Field>
+      <Button block size="lg" onClick={save} loading={busy}>
+        Send referral
+      </Button>
+    </Sheet>
+  );
+}
+
+/** What the customer sees for each referral; the internal pipeline stage stays with the sales team. */
+const REFERRAL_STATUS: Record<string, string> = {
+  New: 'Received',
+  Contacted: 'Contacted',
+  Qualified: 'In talks',
+  'Site Visit': 'Visited the site',
+  Negotiation: 'In talks',
+  Booked: 'Booked',
+  Closed: 'Booked',
+  Lost: 'Not going ahead',
+};
+
+export function CustomerReferrals() {
+  const q = usePortalReferrals();
+  const [params, setParams] = useSearchParams();
+  const adding = params.get('new') === '1';
+  const setAdding = (on: boolean) => setParams(on ? { new: '1' } : {}, { replace: true });
+  return (
+    <Screen title="Refer a friend" back="/home">
+      <Card className="flex gap-3 bg-brand-950 p-4 text-white">
+        <Gift className="mt-0.5 size-6 shrink-0 text-gold-300" />
+        <div>
+          <p className="font-semibold">Share the home you love</p>
+          <p className="mt-0.5 text-[13px] text-white/70">Refer friends and family. You can follow each referral here.</p>
+        </div>
+      </Card>
+      <Button block icon={UserPlus} onClick={() => setAdding(true)}>
+        Refer a friend
+      </Button>
+      <Section title="Your referrals">
+        <Loadable q={q}>
+          {(d) =>
+            d.data.length ? (
+              <Card className="divide-y divide-stone-100">
+                {d.data.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                    <Avatar name={r.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{r.name}</p>
+                      <p className="num text-[13px] text-stone-500">
+                        {r.phone} · {timeAgo(r.created_at)}
+                      </p>
+                    </div>
+                    <StatusBadge status={REFERRAL_STATUS[r.status] ?? r.status} />
+                  </div>
+                ))}
+              </Card>
+            ) : (
+              <Empty icon={UserPlus} title="No referrals yet" body="People you refer show up here with how things are going." />
+            )
+          }
+        </Loadable>
+      </Section>
+      {adding && <ReferSheet onClose={() => setAdding(false)} />}
+    </Screen>
+  );
+}
+
+/** Refer and rate shortcuts on Home, plus the one-time possession prompt when the home is ready. */
+function FeedbackCards({ stage }: { stage?: string | null }) {
+  const fb = usePortalFeedback();
+  const [rating, setRating] = useState<'general' | 'possession' | null>(null);
+  const askPossession = !!stage && POSSESSION_STAGES.includes(stage) && !!fb.data && !fb.data.data.some((f) => f.kind === 'possession');
+  return (
+    <>
+      {askPossession && (
+        <Card className="flex items-center gap-3 border-gold-200 p-4">
+          <KeyRound className="size-5 shrink-0 text-gold-600" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Rate your possession</p>
+            <p className="text-[13px] text-stone-500">Your home is {stage === 'Handed over' ? 'handed over' : 'ready'}. Tell us how it went.</p>
+          </div>
+          <Button size="sm" variant="gold" onClick={() => setRating('possession')}>
+            Rate
+          </Button>
+        </Card>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <Link to="/refer" className="card flex h-14 items-center justify-center gap-2 font-semibold text-brand-900 active:bg-stone-50">
+          <Gift className="size-[18px]" /> Refer a friend
+        </Link>
+        <button type="button" onClick={() => setRating('general')} className="card flex h-14 items-center justify-center gap-2 font-semibold text-brand-900 active:bg-stone-50">
+          <Star className="size-[18px]" /> Rate us
+        </button>
+      </div>
+      {rating && <RateSheet kind={rating} onClose={() => setRating(null)} />}
+    </>
+  );
+}
+
 export function CustomerHome() {
   const user = useUser();
   const q = usePortal();
@@ -95,6 +282,8 @@ export function CustomerHome() {
               )}
 
               <RegistryStatusCard c={p.customer} />
+
+              <FeedbackCards stage={p.property?.construction_stage} />
 
               {p.property && (
                 <Section title="Your property">

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
 import { ArrowLeft, Check, Copy, MapPin, MessageCircle, Phone, Share2 } from 'lucide-react';
 import { ApiError, get, media, type Property } from '../lib/api';
 import { inr, inrShort, telHref, waHref } from '../lib/format';
@@ -8,7 +8,8 @@ import { useSeo } from '../lib/seo';
 import { Gallery } from '../components/Gallery';
 import { LeadForm } from '../components/Forms';
 import { EmiCalculator } from '../components/Emi';
-import { PropertyCard, StatusPill } from '../components/ui';
+import { PropertyCard, SaveButton, StatusPill } from '../components/ui';
+import { VISIT_ANCHOR } from '../lib/shortlist';
 import NotFound from './NotFound';
 
 type Detail = Property & { similar: Property[] };
@@ -39,6 +40,13 @@ export default function PropertyDetail() {
   const res = useApi<Detail | null>(() => get<Detail>(`/properties/${encodeURIComponent(slug)}`).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))), slug);
   const [tab, setTab] = useState<'visit' | 'enquiry'>('visit');
   const p = res.data;
+  const { hash } = useLocation();
+  // "Book a site visit" links from the comparison page land on the form once the property has loaded.
+  useEffect(() => {
+    if (!p || hash !== `#${VISIT_ANCHOR}`) return;
+    setTab('visit');
+    document.getElementById(VISIT_ANCHOR)?.scrollIntoView({ block: 'start' });
+  }, [p, hash]);
   useSeo({
     title: p ? `${p.name} · ${p.project} · Starwiz Realty` : 'Property · Starwiz Realty',
     description: p ? `${p.type} in ${p.location}, ${p.city}: ${p.area_sqft.toLocaleString('en-IN')} sq ft for ${inrShort(p.price)}. ${p.description ?? ''}`.slice(0, 300) : 'Property details',
@@ -108,7 +116,8 @@ export default function PropertyDetail() {
           <div className="mt-6 flex flex-wrap items-end gap-x-6 gap-y-3">
             <p className="font-display text-4xl font-semibold text-forest">{inr(p.price)}</p>
             <p className="pb-1 text-muted">{inr(p.price / p.area_sqft)} per sq ft</p>
-            <div className="ml-auto">
+            <div className="ml-auto flex flex-wrap gap-2">
+              <SaveButton slug={p.slug} withText />
               <ShareButton title={p.name} />
             </div>
           </div>
@@ -187,7 +196,7 @@ export default function PropertyDetail() {
           </p>
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start" aria-label="Contact about this property">
+        <aside id={VISIT_ANCHOR} className="scroll-mt-24 lg:sticky lg:top-24 lg:self-start" aria-label="Contact about this property">
           <div className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-12px_rgba(6,36,25,.3)]">
             <div role="tablist" aria-label="Request type" className="grid grid-cols-2 rounded-full bg-paper p-1 text-sm font-bold">
               {(['visit', 'enquiry'] as const).map((t) => (

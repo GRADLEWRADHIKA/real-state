@@ -1,5 +1,5 @@
 /** Product version shared by the API (/api/meta), the dashboard and the app. Bump on every release. */
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.0.1';
 export const APP_NAME = 'EstateFlow CRM';
 
 /** -1 / 0 / 1 for dotted numeric versions ("2.0.10" > "2.0.9"). */

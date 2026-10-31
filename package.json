@@ -1,7 +1,7 @@
 {
   "name": "estateflow-app",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "EstateFlow mobile app (Capacitor 8, Android first) for field staff and customers. Talks to estateflow-backend.",
   "type": "module",
   "scripts": {
